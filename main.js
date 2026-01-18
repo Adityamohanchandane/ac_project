@@ -1,10 +1,19 @@
 import './style.css'
-import { createClient } from '@supabase/supabase-js'
 
-// Initialize Supabase
+// Initialize Supabase if env vars are present; otherwise use null-safe stub
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+let supabase = null
+try {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  } else {
+    console.warn('Supabase not configured — continuing without Supabase')
+  }
+} catch (e) {
+  console.error('Failed to initialize Supabase client:', e)
+  supabase = null
+}
 
 // Global state
 let currentUser = null
@@ -96,6 +105,31 @@ const initApp = () => {
   initTooltips()
 }
 
+// Simple notification helper to show bootstrap alerts
+function showNotification(type, message, timeout = 4000) {
+  const containerId = 'global-notifications'
+  let container = document.getElementById(containerId)
+  if (!container) {
+    container = document.createElement('div')
+    container.id = containerId
+    container.style.position = 'fixed'
+    container.style.top = '1rem'
+    container.style.right = '1rem'
+    container.style.zIndex = '1060'
+    document.body.appendChild(container)
+  }
+
+  const alert = document.createElement('div')
+  alert.className = `alert alert-${type} alert-dismissible fade show`
+  alert.role = 'alert'
+  alert.innerHTML = `${message} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`
+  container.appendChild(alert)
+
+  if (timeout > 0) setTimeout(() => {
+    try { bootstrap.Alert.getOrCreateInstance(alert).close() } catch (e) { alert.remove() }
+  }, timeout)
+}
+
 const pages = {
   home: renderHome,
   about: renderAbout,
@@ -134,11 +168,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 })
 
 async function checkAuth() {
+  if (!supabase) {
+    return false
+  }
+
   try {
     const { data, error } = await supabase.auth.getSession()
-    
+
     if (error) throw error
-    
+
     if (data.session) {
       currentUser = data.session.user
       
@@ -460,27 +498,27 @@ function renderUserRegister() {
         <form id="registerForm">
           <div class="mb-3">
             <label class="form-label">Full Name</label>
-            <input type="text" class="form-control" id="fullName" required>
+            <input type="text" class="form-control" name="cname" id="fullName" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Email</label>
-            <input type="email" class="form-control" id="email" required>
+            <input type="email" class="form-control" name="cemail" id="email" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Mobile Number</label>
-            <input type="tel" class="form-control" id="mobile" required>
+            <input type="tel" class="form-control" name="cmobile" id="mobile" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Address</label>
-            <textarea class="form-control" id="address" rows="2"></textarea>
+            <textarea class="form-control" name="caddress" id="address" rows="2"></textarea>
           </div>
           <div class="mb-3">
             <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="password" required>
+            <input type="password" class="form-control" name="cpassword" id="password" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Confirm Password</label>
-            <input type="password" class="form-control" id="confirmPassword" required>
+            <input type="password" class="form-control" name="cpass" id="confirmPassword" required>
           </div>
           <div id="registerAlert"></div>
           <button type="submit" class="btn btn-primary w-100">Register</button>
@@ -850,23 +888,26 @@ async function handleUserRegister(form) {
   }
 
   try {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
+    // Submit to server-side PHP register endpoint
+    const payload = new URLSearchParams()
+    payload.append('email', email)
+    payload.append('password', password)
+    payload.append('password2', confirmPassword)
+    payload.append('fullName', fullName)
+    payload.append('mobile', mobile)
+    payload.append('address', address)
+
+    const res = await fetch('/register.php', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: payload,
     })
 
-    if (authError) throw authError
-
-    const { error: userError } = await supabase.from('users').insert({
-      id: authData.user.id,
-      email,
-      full_name: fullName,
-      mobile,
-      address,
-      role: 'user',
-    })
-
-    if (userError) throw userError
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Registration failed'}</div>`
+      return
+    }
 
     alertDiv.innerHTML = '<div class="alert alert-success">Registration successful! <a href="#/user-login">Login here</a></div>'
     form.reset()

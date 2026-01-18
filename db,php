@@ -1,0 +1,29 @@
+<?php
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "exam";
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Collect form data safely
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $name = $conn->real_escape_string($_POST['cname']);
+    $email = $conn->real_escape_string($_POST['cemail']);
+    $message = $conn->real_escape_string($_POST['cmessage']);
+
+    // Insert into DB
+    $sql = "INSERT INTO sonu (name, email, message) VALUES ('$name', '$email', '$message')";
+
+    if ($conn->query($sql) === TRUE) {
+        echo "Message sent successfully!";
+    } else {
+        echo "Error: " . $conn->error;
+    }
+}
+
+$conn->close();
+?>
