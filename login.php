@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login - Secure India</title>
+  <title>Login - ObservX</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
   <style>
@@ -165,9 +165,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="login-container">
     <div class="login-card">
       <div class="text-center mb-4">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMMmc03XMrsumZRwXef3lz-yNtyge_JlzEMYa485dRB3GFNRn4m25wOFYviCkCkpcsOjI&usqp=CAU" 
-             alt="Secure India" style="height: 60px; margin-bottom: 1rem;">
-        <h3>Secure India Portal</h3>
+           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMMmc03XMrsumZRwXef3lz-yNtyge_JlzEMYa485dRB3GFNRn4m25wOFYviCkCkpcsOjI&usqp=CAU" 
+             alt="ObservX" style="height: 60px; margin-bottom: 1rem;">
+           <h3>ObservX Portal</h3>
       </div>
       
       <?php if (!empty($errors)): ?>

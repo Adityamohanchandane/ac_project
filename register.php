@@ -4,12 +4,15 @@ session_start();
 
 $errors = [];
 $email = '';
+$fullName = '';
+$mobile = '';
+$address = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $email = trim($_POST['email'] ?? '');
   $password = $_POST['password'] ?? '';
   $password2 = $_POST['password2'] ?? '';
-  $fullName = trim($_POST['fullName'] ?? '') ;
+  $fullName = trim($_POST['fullName'] ?? '');
   $mobile = trim($_POST['mobile'] ?? '');
   $address = trim($_POST['address'] ?? '');
 
@@ -26,67 +29,190 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       'address' => $address,
     ];
     $user = add_user($email, $password, 'user', $extra);
-
-    // If request expects JSON (AJAX), return JSON response
-    $acceptsJson = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
-    $isXhr = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
-    if ($acceptsJson || $isXhr) {
-      header('Content-Type: application/json');
-      echo json_encode(['success' => true, 'message' => 'Registration successful', 'user' => $user]);
-      exit;
-    }
-
     header('Location: login.php');
     exit;
   }
 }
-
 ?>
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Register - Secure India</title>
+  <title>Register - ObservX</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    .registration-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: url('registration-hero.webp') no-repeat center center fixed;
+      background-size: cover;
+      position: relative;
+    }
+    
+    .registration-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1;
+    }
+
+    .registration-box {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 500px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .registration-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .registration-header img {
+      height: 80px;
+      margin-bottom: 1rem;
+    }
+
+    .registration-header h2 {
+      color: #2c3e50;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .registration-header p {
+      color: #7f8c8d;
+      margin: 0;
+    }
+
+    .form-label {
+      font-weight: 500;
+      color: #2c3e50;
+    }
+
+    .form-control {
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      padding: 0.75rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+    }
+
+    .btn-register {
+      background: #3498db;
+      border: none;
+      padding: 0.75rem;
+      font-weight: 600;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-register:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+    }
+
+    .login-link {
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+
+    .alert {
+      border-radius: 8px;
+    }
+
+    @media (max-width: 576px) {
+      .registration-box {
+        padding: 1.5rem;
+      }
+    }
+  </style>
 </head>
-<body class="bg-light">
-  <div class="container py-5">
-    <div class="row justify-content-center">
-      <div class="col-md-6">
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <h3 class="card-title mb-3">Register</h3>
-            <?php if (!empty($errors)): ?>
-              <div class="alert alert-danger">
-                <?php foreach ($errors as $e) echo "<div>" . htmlspecialchars($e) . "</div>"; ?>
-              </div>
-            <?php endif; ?>
-
-            <form method="post" action="register.php">
-              <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($email) ?>" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" name="password" class="form-control" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Confirm Password</label>
-                <input type="password" name="password2" class="form-control" required>
-              </div>
-              <div class="d-grid">
-                <button class="btn btn-primary">Register</button>
-              </div>
-            </form>
-
-            <hr>
-            <p class="small">Already have an account? <a href="login.php">Login here</a></p>
-          </div>
-        </div>
+<body>
+  <div class="registration-container">
+    <div class="registration-box">
+      <div class="registration-header">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMMmc03XMrsumZRwXef3lz-yNtyge_JlzEMYa485dRB3GFNRn4m25wOFYviCkCkpcsOjI" alt="ObservX">
+        <h2>Create Account</h2>
+        <p>Join our community today</p>
       </div>
+
+      <?php if (!empty($errors)): ?>
+        <div class="alert alert-danger">
+          <?php foreach ($errors as $error): ?>
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <?php echo htmlspecialchars($error); ?>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+
+      <form method="POST" action="register.php">
+        <div class="mb-3">
+          <label for="fullName" class="form-label">Full Name</label>
+          <input type="text" class="form-control" id="fullName" name="fullName" value="<?php echo htmlspecialchars($fullName); ?>" placeholder="Enter your name" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="email" class="form-label">Email Address</label>
+          <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($email); ?>" placeholder="Enter your email" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="mobile" class="form-label">Mobile Number</label>
+          <input type="tel" class="form-control" id="mobile" name="mobile" value="<?php echo htmlspecialchars($mobile); ?>" placeholder="Enter your mobile" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="address" class="form-label">Address</label>
+          <textarea class="form-control" id="address" name="address" rows="2" placeholder="Enter your address"><?php echo htmlspecialchars($address); ?></textarea>
+        </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="password" name="password" placeholder="Create a password" required>
+        </div>
+
+        <div class="mb-4">
+          <label for="password2" class="form-label">Confirm Password</label>
+          <input type="password" class="form-control" id="password2" name="password2" placeholder="Confirm password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-register w-100 py-2">
+          Register
+        </button>
+
+        <div class="login-link">
+          Already have an account? <a href="login.php">Sign in</a>
+        </div>
+      </form>
     </div>
   </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

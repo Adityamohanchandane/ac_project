@@ -338,7 +338,7 @@ function renderHome() {
   return `
     <div class="container">
       <div class="hero-section">
-        <h1><i class="bi bi-shield-check"></i> Secure India</h1>
+        <h1><i class="bi bi-shield-check"></i> ObservX</h1>
         <p class="tagline">A Digital Platform for Public Safety & Justice</p>
         <p class="mb-4">File complaints securely and track their status in real-time</p>
         ${!currentUser ? `
@@ -403,8 +403,8 @@ function renderAbout() {
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto">
-          <h1>About Secure India</h1>
-          <p class="lead">Secure India is a national digital platform designed to bridge the gap between citizens and law enforcement agencies.</p>
+          <h1>About ObservX</h1>
+          <p class="lead">ObservX is a national digital platform designed to bridge the gap between citizens and law enforcement agencies.</p>
 
           <h3>Our Mission</h3>
           <p>To provide a secure, transparent, and efficient system for filing and tracking police complaints across India.</p>
