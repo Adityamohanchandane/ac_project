@@ -7,6 +7,7 @@ $email = '';
 $fullName = '';
 $mobile = '';
 $address = '';
+$isAjax = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $email = trim($_POST['email'] ?? '');
@@ -29,7 +30,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       'address' => $address,
     ];
     $user = add_user($email, $password, 'user', $extra);
-    header('Location: login.php');
+    
+    if ($isAjax) {
+      header('Content-Type: application/json');
+      echo json_encode(['success' => true, 'message' => 'Registration successful']);
+      exit;
+    } else {
+      header('Location: login.php');
+      exit;
+    }
+  }
+  
+  if ($isAjax && !empty($errors)) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => implode(' ', $errors)]);
     exit;
   }
 }
@@ -155,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="registration-container">
     <div class="registration-box">
       <div class="registration-header">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMMmc03XMrsumZRwXef3lz-yNtyge_JlzEMYa485dRB3GFNRn4m25wOFYviCkCkpcsOjI" alt="ObservX">
+        <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX">
         <h2>Create Account</h2>
         <p>Join our community today</p>
       </div>

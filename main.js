@@ -1,4 +1,7 @@
 import './style.css'
+// Ensure Supabase client is available in the browser environment.
+// Using the ESM bundle served by jsDelivr so `createClient` is defined.
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 // Initialize Supabase if env vars are present; otherwise use null-safe stub
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -338,7 +341,10 @@ function renderHome() {
   return `
     <div class="container">
       <div class="hero-section">
-        <h1><i class="bi bi-shield-check"></i> ObservX</h1>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+          <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX" style="height: 80px; width: 80px; border-radius: 50%; object-fit: cover; margin-right: 1.5rem; background: white; padding: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+          <h1 style="margin: 0; font-size: 3.5rem;">ObservX</h1>
+        </div>
         <p class="tagline">A Digital Platform for Public Safety & Justice</p>
         <p class="mb-4">File complaints securely and track their status in real-time</p>
         ${!currentUser ? `
@@ -403,6 +409,9 @@ function renderAbout() {
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto">
+          <div class="text-center mb-4">
+            <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX" style="height: 80px; margin-bottom: 1rem;">
+          </div>
           <h1>About ObservX</h1>
           <p class="lead">ObservX is a national digital platform designed to bridge the gap between citizens and law enforcement agencies.</p>
 
@@ -922,27 +931,27 @@ async function handleUserLogin(form) {
   const alertDiv = document.getElementById('loginAlert')
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    // First try PHP backend
+    const payload = new URLSearchParams()
+    payload.append('email', email)
+    payload.append('password', password)
+
+    const res = await fetch('/login.php', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: payload,
     })
 
-    if (error) throw error
-
-    currentUser = data.user
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', currentUser.id)
-      .maybeSingle()
-    currentUserRole = userData?.role || 'user'
-
-    if (currentUserRole !== 'user') {
-      throw new Error('Invalid user role')
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Login failed'}</div>`
+      return
     }
 
-    updateAuthMenu()
-    location.hash = '#/user-dashboard'
+    alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
+    setTimeout(() => {
+      location.hash = '#/user-dashboard'
+    }, 500)
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }
@@ -954,28 +963,26 @@ async function handlePoliceLogin(form) {
   const alertDiv = document.getElementById('policeLoginAlert')
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const payload = new URLSearchParams()
+    payload.append('email', email)
+    payload.append('password', password)
+
+    const res = await fetch('/police-login.php', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: payload,
     })
 
-    if (error) throw error
-
-    currentUser = data.user
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', currentUser.id)
-      .maybeSingle()
-    currentUserRole = userData?.role
-
-    if (currentUserRole !== 'police') {
-      await supabase.auth.signOut()
-      throw new Error('Invalid credentials. Police portal access only.')
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Login failed'}</div>`
+      return
     }
 
-    updateAuthMenu()
-    location.hash = '#/police-dashboard'
+    alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
+    setTimeout(() => {
+      location.hash = '#/police-dashboard'
+    }, 500)
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }

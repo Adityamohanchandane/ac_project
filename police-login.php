@@ -16,13 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = find_user_by_email($email);
         if (!$user) {
             $errors[] = 'No account found with that email.';
+        } else if (($user['role'] ?? 'user') !== 'police') {
+            $errors[] = 'This account is not authorized for police portal.';
         } else {
             if (verify_password($password, $user['password'])) {
                 // login success
                 $_SESSION['user'] = [
                     'id' => $user['id'],
                     'email' => $user['email'],
-                    'role' => $user['role'] ?? 'user'
+                    'role' => 'police'
                 ];
                 
                 if ($isAjax) {
@@ -30,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo json_encode(['success' => true, 'message' => 'Login successful']);
                     exit;
                 } else {
-                    header('Location: dashboard.php');
+                    header('Location: police-dashboard.php');
                     exit;
                 }
             } else {
@@ -45,14 +47,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 }
-
 ?>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login - ObservX</title>
+  <title>Police Login - ObservX</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
   <style>
@@ -69,44 +70,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       align-items: center;
       justify-content: center;
       padding: 2rem;
-      background: url('https://d3lzcn6mbbadaf.cloudfront.net/media/details/ANI-20241214151801.jpg') no-repeat center center fixed;
-      background-size: cover;
-      -webkit-background-size: cover;
-      -moz-background-size: cover;
-      -o-background-size: cover;
+      background: linear-gradient(135deg, #1a3a52 0%, #2d5a7b 100%);
       position: relative;
-    }
-    
-    .login-container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.6);
-      z-index: 0;
     }
     
     .login-card {
       position: relative;
-      z-index: 1;
       background: rgba(255, 255, 255, 0.95);
       padding: 2.5rem;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       width: 100%;
       max-width: 450px;
-      backdrop-filter: blur(5px);
-      -webkit-backdrop-filter: blur(5px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 2px solid #ffc107;
     }
     
     .login-card h3 {
-      color: #1a1a1a;
+      color: #1a3a52;
       margin-bottom: 1.5rem;
       text-align: center;
       font-weight: 600;
+    }
+    
+    .badge-police {
+      background-color: #ffc107;
+      color: #1a3a52;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      text-align: center;
+      width: 100%;
     }
     
     .form-label {
@@ -119,28 +114,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       padding: 0.75rem 1rem;
       border: 1px solid #ddd;
       border-radius: 8px;
-      transition: all 0.3s ease;
       background-color: rgba(255, 255, 255, 0.9);
     }
     
     .form-control:focus {
-      border-color: #0d6efd;
-      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+      border-color: #ffc107;
+      box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
     }
     
-    .btn-primary {
+    .btn-police {
+      background: linear-gradient(135deg, #ffc107, #ffb300);
+      color: #1a3a52;
+      border: none;
       padding: 0.75rem;
       font-weight: 600;
       border-radius: 8px;
-      background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-      border: none;
       margin-top: 1rem;
       transition: all 0.3s ease;
     }
     
-    .btn-primary:hover {
+    .btn-police:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+      color: #1a3a52;
     }
     
     .alert {
@@ -148,13 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       border-radius: 8px;
     }
     
-    .alert-danger {
-      background-color: #f8d7da;
-      color: #842029;
-    }
-    
     .text-center a {
-      color: #0d6efd;
+      color: #ffc107;
       text-decoration: none;
       font-weight: 500;
     }
@@ -162,26 +153,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .text-center a:hover {
       text-decoration: underline;
     }
-    
-    @media (max-width: 576px) {
-      .login-card {
-        padding: 2rem 1.5rem;
-        margin: 1rem;
-      }
-      
-      .login-container {
-        padding: 1rem;
-      }
-    }
   </style>
 </head>
 <body>
   <div class="login-container">
     <div class="login-card">
       <div class="text-center mb-4">
-        <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" 
-             alt="ObservX" style="height: 60px; margin-bottom: 1rem;">
-           <h3>ObservX Portal</h3>
+        <div class="badge-police">
+          <i class="bi bi-shield-lock me-2"></i>POLICE PORTAL
+        </div>
+        <h3>Police Admin Login</h3>
+        <p class="text-muted small">Authorized personnel only</p>
       </div>
       
       <?php if (!empty($errors)): ?>
@@ -195,21 +177,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       <?php endif; ?>
 
-      <form method="post" action="login.php">
+      <form method="post" action="police-login.php">
         <div class="mb-3">
-          <label class="form-label">Email Address</label>
+          <label class="form-label">Police Email ID</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-envelope"></i></span>
             <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($email) ?>" required
-                   placeholder="Enter your email address">
+                   placeholder="Enter your police email">
           </div>
         </div>
         
         <div class="mb-4">
-          <div class="d-flex justify-content-between">
-            <label class="form-label">Password</label>
-            <a href="#" class="small text-muted text-decoration-none">Forgot password?</a>
-          </div>
+          <label class="form-label">Password</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-lock"></i></span>
             <input type="password" name="password" class="form-control" required
@@ -217,29 +196,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
         </div>
         
-        <button class="btn btn-primary w-100 py-2">
-          <i class="bi bi-box-arrow-in-right me-2"></i>Login to Account
+        <button class="btn btn-police w-100 py-2">
+          <i class="bi bi-shield-check me-2"></i>Login to Portal
         </button>
       </form>
 
-      <div class="text-center mt-4">
-        <p class="mb-0 text-muted">Don't have an account? 
-          <a href="register.php" class="fw-semibold text-decoration-none">
-            Create an account
-          </a>
-        </p>
-      </div>
-      
-      <div class="d-flex justify-content-center mt-4 pt-3 border-top">
-        <a href="#" class="btn btn-outline-secondary btn-sm me-2">
-          <i class="bi bi-google"></i>
-        </a>
-        <a href="#" class="btn btn-outline-primary btn-sm me-2">
-          <i class="bi bi-facebook"></i>
-        </a>
-        <a href="#" class="btn btn-outline-info btn-sm">
-          <i class="bi bi-twitter-x"></i>
-        </a>
+      <div class="text-center mt-4 pt-3 border-top">
+        <p class="text-muted small mb-0">For access issues, contact your administrator</p>
       </div>
     </div>
   </div>
