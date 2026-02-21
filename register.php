@@ -1,6 +1,22 @@
 <?php
+// Enable output buffering and error handling for JSON responses
+ob_start();
+error_reporting(0);
+ini_set('display_errors', 0);
+
 require_once __DIR__ . '/db.php';
 session_start();
+
+// Function to send clean JSON response
+function send_json_response($success, $message) {
+    // Clean any output buffer
+    ob_clean();
+    // Set headers
+    header('Content-Type: application/json');
+    // Send response
+    echo json_encode(['success' => $success, 'message' => $message]);
+    exit;
+}
 
 $errors = [];
 $email = '';
@@ -9,28 +25,54 @@ $mobile = '';
 $address = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $email = trim($_POST['email'] ?? '');
-  $password = $_POST['password'] ?? '';
-  $password2 = $_POST['password2'] ?? '';
-  $fullName = trim($_POST['fullName'] ?? '');
-  $mobile = trim($_POST['mobile'] ?? '');
-  $address = trim($_POST['address'] ?? '');
+  // Check if this is an AJAX request
+  $isAjax = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
+  
+  try {
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $password2 = $_POST['password2'] ?? '';
+    $fullName = trim($_POST['fullName'] ?? '');
+    $mobile = trim($_POST['mobile'] ?? '');
+    $address = trim($_POST['address'] ?? '');
 
-  if ($email === '' || $password === '' || $password2 === '') {
-    $errors[] = 'All fields are required.';
-  } elseif ($password !== $password2) {
-    $errors[] = 'Passwords do not match.';
-  } elseif (find_user_by_email($email)) {
-    $errors[] = 'An account with that email already exists.';
-  } else {
-    $extra = [
-      'full_name' => $fullName,
-      'mobile' => $mobile,
-      'address' => $address,
-    ];
-    $user = add_user($email, $password, 'user', $extra);
-    header('Location: login.php');
-    exit;
+    if ($email === '' || $password === '' || $password2 === '') {
+      $errors[] = 'All fields are required.';
+    } elseif ($password !== $password2) {
+      $errors[] = 'Passwords do not match.';
+    } elseif (find_user_by_email($email)) {
+      $errors[] = 'An account with that email already exists.';
+    } else {
+      $extra = [
+        'full_name' => $fullName,
+        'mobile' => $mobile,
+        'address' => $address,
+      ];
+      $user = add_user($email, $password, 'user', $extra);
+      
+      if ($user) {
+        if ($isAjax) {
+          send_json_response(true, 'Registration successful!');
+        } else {
+          header('Location: login.php');
+          exit;
+        }
+      } else {
+        $errors[] = 'Registration failed. Please try again.';
+      }
+    }
+
+    // If there are errors and this is AJAX, return JSON error
+    if ($isAjax && !empty($errors)) {
+      send_json_response(false, implode(', ', $errors));
+      exit;
+    }
+  } catch (Exception $e) {
+    if ($isAjax) {
+      send_json_response(false, 'Server error: ' . $e->getMessage());
+    } else {
+      $errors[] = 'Server error occurred. Please try again.';
+    }
   }
 }
 ?>

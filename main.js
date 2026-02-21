@@ -897,20 +897,30 @@ async function handleUserRegister(form) {
     payload.append('mobile', mobile)
     payload.append('address', address)
 
-    const res = await fetch('/register.php', {
+    const res = await fetch('/ac_project/register.php', {
       method: 'POST',
-      headers: { 'Accept': 'application/json' },
+      headers: { 
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
       body: payload,
     })
 
-    const json = await res.json()
-    if (!res.ok || !json.success) {
-      alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Registration failed'}</div>`
-      return
-    }
+    const responseText = await res.text()
+    console.log('Raw response:', responseText)
+    
+    try {
+      const json = JSON.parse(responseText)
+      if (!res.ok || !json.success) {
+        alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Registration failed'}</div>`
+        return
+      }
 
-    alertDiv.innerHTML = '<div class="alert alert-success">Registration successful! <a href="#/user-login">Login here</a></div>'
-    form.reset()
+      alertDiv.innerHTML = '<div class="alert alert-success">Registration successful! <a href="#/user-login">Login here</a></div>'
+      form.reset()
+    } catch (jsonError) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">Server error: ${responseText}</div>`
+    }
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }
