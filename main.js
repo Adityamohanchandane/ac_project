@@ -306,6 +306,31 @@ async function loadPage(route) {
       // Add animation class to new content
       content.style.opacity = '0'
       content.style.animation = 'fadeIn 0.5s forwards'
+      
+      // Attach location capture button listener if on complaint form page
+      if (route === 'file-complaint') {
+        const captureBtn = document.getElementById('captureUserLocation')
+        if (captureBtn) {
+          captureBtn.addEventListener('click', async (e) => {
+            e.preventDefault()
+            captureBtn.disabled = true
+            captureBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...'
+            
+            try {
+              const location = await getUserLocation()
+              const locationStr = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)} (±${location.accuracy.toFixed(0)}m)`
+              document.getElementById('userLocation').value = locationStr
+              document.getElementById('userLocation').setAttribute('data-location', JSON.stringify(location))
+              showNotification('success', 'Location captured successfully!', 3000)
+            } catch (error) {
+              showNotification('error', `Error: ${error.message}`, 5000)
+            } finally {
+              captureBtn.disabled = false
+              captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture'
+            }
+          })
+        }
+      }
     } else {
       content.innerHTML = `
         <div class="container py-5 text-center">
@@ -596,6 +621,32 @@ function renderPoliceLogin() {
   `
 }
 
+// Capture user's current location using Geolocation API
+async function getUserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by this browser'))
+      return
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords
+        resolve({
+          latitude,
+          longitude,
+          accuracy,
+          timestamp: new Date().toISOString()
+        })
+      },
+      (error) => {
+        reject(error)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
+  })
+}
+
 function renderFileComplaint() {
   if (!currentUser || currentUserRole === 'police') {
     return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
@@ -630,8 +681,19 @@ function renderFileComplaint() {
                 <input type="date" class="form-control" id="incidentDate" required>
               </div>
               <div class="mb-3">
-                <label class="form-label">Location <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="location" placeholder="City, State" required>
+                <label class="form-label">Your Current Location (Auto-captured) <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="userLocation" placeholder="Waiting for GPS..." readonly>
+                  <button class="btn btn-outline-secondary" type="button" id="captureUserLocation">
+                    <i class="bi bi-geo-alt"></i> Capture
+                  </button>
+                </div>
+                <small class="text-muted">Your current location will be recorded for verification</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Crime Location (Where incident happened) <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="crimeLocation" placeholder="Address or location of incident" required>
+                <small class="text-muted">Optional: Provide GPS coordinates (latitude, longitude)</small>
               </div>
               <div class="mb-3">
                 <label class="form-label">Description <span class="text-danger">*</span></label>
@@ -992,12 +1054,33 @@ async function handleComplaintSubmit(form) {
   const title = document.getElementById('complaintTitle').value
   const category = document.getElementById('category').value
   const incidentDate = document.getElementById('incidentDate').value
-  const location = document.getElementById('location').value
+  const userLocationInput = document.getElementById('userLocation')
+  const crimeLocation = document.getElementById('crimeLocation').value
   const description = document.getElementById('description').value
   const evidenceFile = document.getElementById('evidence').files[0]
   const alertDiv = document.getElementById('complaintAlert')
 
   try {
+    // Validate user location captured
+    if (!userLocationInput.value) {
+      throw new Error('Please capture your current location using the GPS button')
+    }
+
+    // Parse user location from data attribute
+    const userLocationStr = userLocationInput.getAttribute('data-location')
+    let userLocation = null
+    try {
+      userLocation = JSON.parse(userLocationStr)
+    } catch (e) {
+      throw new Error('Invalid location format. Try capturing again.')
+    }
+
+    // Crime location (basic parsing - can be extended with geocoding)
+    const crimeLocationData = {
+      address: crimeLocation,
+      captured_at: new Date().toISOString()
+    }
+
     let evidencePath = null
 
     if (evidenceFile) {
@@ -1006,33 +1089,43 @@ async function handleComplaintSubmit(form) {
         throw new Error('File size must be less than 5MB')
       }
 
-      const fileName = `${currentUser.id}/${Date.now()}-${evidenceFile.name}`
-      const { error: uploadError } = await supabase.storage
-        .from('complaint-evidence')
-        .upload(fileName, evidenceFile)
-
-      if (uploadError) throw uploadError
-      evidencePath = fileName
+      // For now, just store file info locally (no Supabase)
+      // In production, you'd use proper storage
+      evidencePath = evidenceFile.name
     }
 
-    const complaintId = `CI-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
-
-    const { error } = await supabase.from('complaints').insert({
-      complaint_id: complaintId,
+    // Submit to backend with location data
+    const payload = {
       user_id: currentUser.id,
       title,
       category,
       incident_date: incidentDate,
-      location,
-      description,
-      evidence_file: evidencePath,
-      status: 'pending',
+      user_location: userLocation,
+      crime_location: crimeLocationData,
+      description
+    }
+
+    const res = await fetch('/file-complaint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     })
 
-    if (error) throw error
+    const data = await res.json()
 
-    alertDiv.innerHTML = `<div class="alert alert-success">Complaint filed successfully! Your Complaint ID: <strong>${complaintId}</strong></div>`
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to file complaint')
+    }
+
+    alertDiv.innerHTML = `<div class="alert alert-success">
+      Complaint filed successfully!<br>
+      <strong>Complaint ID:</strong> ${data.complaint_id}<br>
+      <small>Your location has been recorded for verification</small>
+    </div>`
     form.reset()
+    document.getElementById('userLocation').value = ''
+    document.getElementById('userLocation').removeAttribute('data-location')
+    
     setTimeout(() => {
       location.hash = '#/my-complaints'
     }, 2000)
