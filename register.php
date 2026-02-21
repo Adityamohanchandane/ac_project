@@ -4,6 +4,9 @@ ob_start();
 error_reporting(0);
 ini_set('display_errors', 0);
 
+// Log every request arrival (minimal, no output)
+@file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] REQUEST: " . ($_SERVER['REQUEST_METHOD'] ?? '-') . " " . ($_SERVER['REQUEST_URI'] ?? '-') . " AJAX=" . (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false ? '1' : '0') . PHP_EOL, FILE_APPEND | LOCK_EX);
+
 require_once __DIR__ . '/db.php';
 session_start();
 
@@ -18,24 +21,33 @@ function send_json_response($success, $message) {
     exit;
 }
 
+// Simple debug logger (appends to debug.log). Safe for local debugging.
+function write_debug_log($msg) {
+  $file = __DIR__ . '/debug.log';
+  $time = date('Y-m-d H:i:s');
+  // Mask newlines in message to keep single-line entries
+  $entry = "[{$time}] " . str_replace("\n", " ", $msg) . PHP_EOL;
+  @file_put_contents($file, $entry, FILE_APPEND | LOCK_EX);
+}
+
 $errors = [];
 $email = '';
 $fullName = '';
 $mobile = '';
 $address = '';
+$isAjax = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  // Check if this is an AJAX request
   $isAjax = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
-  
-  try {
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $password2 = $_POST['password2'] ?? '';
-    $fullName = trim($_POST['fullName'] ?? '');
-    $mobile = trim($_POST['mobile'] ?? '');
-    $address = trim($_POST['address'] ?? '');
 
+  $email = trim($_POST['email'] ?? '');
+  $password = $_POST['password'] ?? '';
+  $password2 = $_POST['password2'] ?? '';
+  $fullName = trim($_POST['fullName'] ?? '');
+  $mobile = trim($_POST['mobile'] ?? '');
+  $address = trim($_POST['address'] ?? '');
+
+  try {
     if ($email === '' || $password === '' || $password2 === '') {
       $errors[] = 'All fields are required.';
     } elseif ($password !== $password2) {
@@ -49,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'address' => $address,
       ];
       $user = add_user($email, $password, 'user', $extra);
-      
+
       if ($user) {
         if ($isAjax) {
           send_json_response(true, 'Registration successful!');
@@ -62,16 +74,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
-    // If there are errors and this is AJAX, return JSON error
-    if ($isAjax && !empty($errors)) {
-      send_json_response(false, implode(', ', $errors));
-      exit;
+    if (!empty($errors)) {
+      if ($isAjax) {
+        $errMsg = implode(' ', $errors);
+        write_debug_log("Registration error for email={$email}: {$errMsg}");
+        send_json_response(false, $errMsg);
+      }
     }
   } catch (Exception $e) {
     if ($isAjax) {
+      write_debug_log('Exception during registration for email=' . ($email ?? '') . ': ' . $e->getMessage() . ' TRACE: ' . $e->getTraceAsString());
       send_json_response(false, 'Server error: ' . $e->getMessage());
     } else {
       $errors[] = 'Server error occurred. Please try again.';
+      write_debug_log('Non-AJAX exception during registration: ' . $e->getMessage());
     }
   }
 }
@@ -197,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="registration-container">
     <div class="registration-box">
       <div class="registration-header">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMMmc03XMrsumZRwXef3lz-yNtyge_JlzEMYa485dRB3GFNRn4m25wOFYviCkCkpcsOjI" alt="ObservX">
+        <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX">
         <h2>Create Account</h2>
         <p>Join our community today</p>
       </div>

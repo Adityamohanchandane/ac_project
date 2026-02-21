@@ -1,4 +1,7 @@
 import './style.css'
+// Ensure Supabase client is available in the browser environment.
+// Using the ESM bundle served by jsDelivr so `createClient` is defined.
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 // Initialize Supabase if env vars are present; otherwise use null-safe stub
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -55,6 +58,9 @@ const initLoader = () => {
 }
 
 // Initialize scroll animations
+// Backend base URL detection: when running from a dev server (non-Apache port)
+const backendBase = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port && window.location.port !== '80') ? `http://${window.location.hostname}` : '';
+
 const initScrollAnimations = () => {
   const animateOnScroll = () => {
     const elements = document.querySelectorAll('.animate-on-scroll')
@@ -303,6 +309,31 @@ async function loadPage(route) {
       // Add animation class to new content
       content.style.opacity = '0'
       content.style.animation = 'fadeIn 0.5s forwards'
+      
+      // Attach location capture button listener if on complaint form page
+      if (route === 'file-complaint') {
+        const captureBtn = document.getElementById('captureUserLocation')
+        if (captureBtn) {
+          captureBtn.addEventListener('click', async (e) => {
+            e.preventDefault()
+            captureBtn.disabled = true
+            captureBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...'
+            
+            try {
+              const location = await getUserLocation()
+              const locationStr = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)} (±${location.accuracy.toFixed(0)}m)`
+              document.getElementById('userLocation').value = locationStr
+              document.getElementById('userLocation').setAttribute('data-location', JSON.stringify(location))
+              showNotification('success', 'Location captured successfully!', 3000)
+            } catch (error) {
+              showNotification('error', `Error: ${error.message}`, 5000)
+            } finally {
+              captureBtn.disabled = false
+              captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture'
+            }
+          })
+        }
+      }
     } else {
       content.innerHTML = `
         <div class="container py-5 text-center">
@@ -338,7 +369,10 @@ function renderHome() {
   return `
     <div class="container">
       <div class="hero-section">
-        <h1><i class="bi bi-shield-check"></i> ObservX</h1>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+          <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX" style="height: 80px; width: 80px; border-radius: 50%; object-fit: cover; margin-right: 1.5rem; background: white; padding: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+          <h1 style="margin: 0; font-size: 3.5rem;">ObservX</h1>
+        </div>
         <p class="tagline">A Digital Platform for Public Safety & Justice</p>
         <p class="mb-4">File complaints securely and track their status in real-time</p>
         ${!currentUser ? `
@@ -403,6 +437,9 @@ function renderAbout() {
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto">
+          <div class="text-center mb-4">
+            <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX" style="height: 80px; margin-bottom: 1rem;">
+          </div>
           <h1>About ObservX</h1>
           <p class="lead">ObservX is a national digital platform designed to bridge the gap between citizens and law enforcement agencies.</p>
 
@@ -587,6 +624,32 @@ function renderPoliceLogin() {
   `
 }
 
+// Capture user's current location using Geolocation API
+async function getUserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by this browser'))
+      return
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords
+        resolve({
+          latitude,
+          longitude,
+          accuracy,
+          timestamp: new Date().toISOString()
+        })
+      },
+      (error) => {
+        reject(error)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
+  })
+}
+
 function renderFileComplaint() {
   if (!currentUser || currentUserRole === 'police') {
     return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
@@ -621,8 +684,19 @@ function renderFileComplaint() {
                 <input type="date" class="form-control" id="incidentDate" required>
               </div>
               <div class="mb-3">
-                <label class="form-label">Location <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="location" placeholder="City, State" required>
+                <label class="form-label">Your Current Location (Auto-captured) <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="userLocation" placeholder="Waiting for GPS..." readonly>
+                  <button class="btn btn-outline-secondary" type="button" id="captureUserLocation">
+                    <i class="bi bi-geo-alt"></i> Capture
+                  </button>
+                </div>
+                <small class="text-muted">Your current location will be recorded for verification</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Crime Location (Where incident happened) <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="crimeLocation" placeholder="Address or location of incident" required>
+                <small class="text-muted">Optional: Provide GPS coordinates (latitude, longitude)</small>
               </div>
               <div class="mb-3">
                 <label class="form-label">Description <span class="text-danger">*</span></label>
@@ -897,29 +971,61 @@ async function handleUserRegister(form) {
     payload.append('mobile', mobile)
     payload.append('address', address)
 
-    const res = await fetch('/ac_project/register.php', {
-      method: 'POST',
-      headers: { 
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: payload,
-    })
+    // Try multiple possible backend endpoints to avoid dev-server vs Apache routing issues
+    const tried = []
+    const candidates = []
+    if (backendBase) candidates.push(`${backendBase}/ac_project/register.php`)
+    candidates.push(`${window.location.protocol}//${window.location.hostname}/ac_project/register.php`)
+    candidates.push('http://localhost/ac_project/register.php')
+    candidates.push('http://127.0.0.1/ac_project/register.php')
 
-    const responseText = await res.text()
-    console.log('Raw response:', responseText)
-    
-    try {
-      const json = JSON.parse(responseText)
-      if (!res.ok || !json.success) {
-        alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Registration failed'}</div>`
-        return
+    let lastError = null
+    let handled = false
+
+    for (const url of candidates) {
+      if (tried.includes(url)) continue
+      tried.push(url)
+      console.log('Attempting registration POST to', url)
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: payload,
+        })
+
+        const responseText = await res.text()
+        console.log('Raw response from', url, responseText)
+
+        try {
+          const json = JSON.parse(responseText)
+          if (!res.ok || !json.success) {
+            alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Registration failed'}</div>`
+            handled = true
+            break
+          }
+
+          alertDiv.innerHTML = '<div class="alert alert-success">Registration successful! <a href="#/user-login">Login here</a></div>'
+          form.reset()
+          handled = true
+          break
+        } catch (jsonError) {
+          // not JSON — show raw text
+          alertDiv.innerHTML = `<div class="alert alert-danger">Server error: ${responseText}</div>`
+          handled = true
+          break
+        }
+      } catch (err) {
+        console.warn('Fetch to', url, 'failed:', err)
+        lastError = err
+        continue
       }
+    }
 
-      alertDiv.innerHTML = '<div class="alert alert-success">Registration successful! <a href="#/user-login">Login here</a></div>'
-      form.reset()
-    } catch (jsonError) {
-      alertDiv.innerHTML = `<div class="alert alert-danger">Server error: ${responseText}</div>`
+    if (!handled) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${lastError ? lastError.message : 'Failed to reach server'}</div>`
     }
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
@@ -932,27 +1038,27 @@ async function handleUserLogin(form) {
   const alertDiv = document.getElementById('loginAlert')
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    // First try PHP backend
+    const payload = new URLSearchParams()
+    payload.append('email', email)
+    payload.append('password', password)
+
+    const res = await fetch('/login.php', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: payload,
     })
 
-    if (error) throw error
-
-    currentUser = data.user
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', currentUser.id)
-      .maybeSingle()
-    currentUserRole = userData?.role || 'user'
-
-    if (currentUserRole !== 'user') {
-      throw new Error('Invalid user role')
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Login failed'}</div>`
+      return
     }
 
-    updateAuthMenu()
-    location.hash = '#/user-dashboard'
+    alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
+    setTimeout(() => {
+      location.hash = '#/user-dashboard'
+    }, 500)
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }
@@ -964,28 +1070,26 @@ async function handlePoliceLogin(form) {
   const alertDiv = document.getElementById('policeLoginAlert')
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const payload = new URLSearchParams()
+    payload.append('email', email)
+    payload.append('password', password)
+
+    const res = await fetch('/police-login.php', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: payload,
     })
 
-    if (error) throw error
-
-    currentUser = data.user
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', currentUser.id)
-      .maybeSingle()
-    currentUserRole = userData?.role
-
-    if (currentUserRole !== 'police') {
-      await supabase.auth.signOut()
-      throw new Error('Invalid credentials. Police portal access only.')
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Login failed'}</div>`
+      return
     }
 
-    updateAuthMenu()
-    location.hash = '#/police-dashboard'
+    alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
+    setTimeout(() => {
+      location.hash = '#/police-dashboard'
+    }, 500)
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }
@@ -995,12 +1099,33 @@ async function handleComplaintSubmit(form) {
   const title = document.getElementById('complaintTitle').value
   const category = document.getElementById('category').value
   const incidentDate = document.getElementById('incidentDate').value
-  const location = document.getElementById('location').value
+  const userLocationInput = document.getElementById('userLocation')
+  const crimeLocation = document.getElementById('crimeLocation').value
   const description = document.getElementById('description').value
   const evidenceFile = document.getElementById('evidence').files[0]
   const alertDiv = document.getElementById('complaintAlert')
 
   try {
+    // Validate user location captured
+    if (!userLocationInput.value) {
+      throw new Error('Please capture your current location using the GPS button')
+    }
+
+    // Parse user location from data attribute
+    const userLocationStr = userLocationInput.getAttribute('data-location')
+    let userLocation = null
+    try {
+      userLocation = JSON.parse(userLocationStr)
+    } catch (e) {
+      throw new Error('Invalid location format. Try capturing again.')
+    }
+
+    // Crime location (basic parsing - can be extended with geocoding)
+    const crimeLocationData = {
+      address: crimeLocation,
+      captured_at: new Date().toISOString()
+    }
+
     let evidencePath = null
 
     if (evidenceFile) {
@@ -1009,33 +1134,43 @@ async function handleComplaintSubmit(form) {
         throw new Error('File size must be less than 5MB')
       }
 
-      const fileName = `${currentUser.id}/${Date.now()}-${evidenceFile.name}`
-      const { error: uploadError } = await supabase.storage
-        .from('complaint-evidence')
-        .upload(fileName, evidenceFile)
-
-      if (uploadError) throw uploadError
-      evidencePath = fileName
+      // For now, just store file info locally (no Supabase)
+      // In production, you'd use proper storage
+      evidencePath = evidenceFile.name
     }
 
-    const complaintId = `CI-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
-
-    const { error } = await supabase.from('complaints').insert({
-      complaint_id: complaintId,
+    // Submit to backend with location data
+    const payload = {
       user_id: currentUser.id,
       title,
       category,
       incident_date: incidentDate,
-      location,
-      description,
-      evidence_file: evidencePath,
-      status: 'pending',
+      user_location: userLocation,
+      crime_location: crimeLocationData,
+      description
+    }
+
+    const res = await fetch('/file-complaint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     })
 
-    if (error) throw error
+    const data = await res.json()
 
-    alertDiv.innerHTML = `<div class="alert alert-success">Complaint filed successfully! Your Complaint ID: <strong>${complaintId}</strong></div>`
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to file complaint')
+    }
+
+    alertDiv.innerHTML = `<div class="alert alert-success">
+      Complaint filed successfully!<br>
+      <strong>Complaint ID:</strong> ${data.complaint_id}<br>
+      <small>Your location has been recorded for verification</small>
+    </div>`
     form.reset()
+    document.getElementById('userLocation').value = ''
+    document.getElementById('userLocation').removeAttribute('data-location')
+    
     setTimeout(() => {
       location.hash = '#/my-complaints'
     }, 2000)
