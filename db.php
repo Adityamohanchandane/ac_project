@@ -74,7 +74,11 @@ function find_user_by_email($email) {
 
     $email = strtolower($email);
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE LOWER(email) = ?");
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+
+    if ($stmt === false) {
+        return null;
+    }
 
     $stmt->bind_param("s", $email);
 
@@ -123,6 +127,10 @@ function add_user($email, $password, $role = 'user', $extra = []) {
     
 
     $stmt = $conn->prepare("INSERT INTO users (id, email, password, role, full_name, mobile, address, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+
+    if ($stmt === false) {
+        return null;
+    }
 
     $stmt->bind_param("ssssssss", $id, $email, $hashed_password, $role, $full_name, $mobile, $address, $created_at);
 

@@ -953,7 +953,7 @@ async function handleUserRegister(form) {
   const mobile = document.getElementById('mobile').value
   const address = document.getElementById('address').value
   const password = document.getElementById('password').value
-  const confirmPassword = document.getElementById('confirmPassword').value
+  const confirmPassword = document.getElementById('password2') ? document.getElementById('password2').value : (document.getElementById('confirmPassword') ? document.getElementById('confirmPassword').value : '')
   const alertDiv = document.getElementById('registerAlert')
 
   if (password !== confirmPassword) {
@@ -974,10 +974,15 @@ async function handleUserRegister(form) {
     // Try multiple possible backend endpoints to avoid dev-server vs Apache routing issues
     const tried = []
     const candidates = []
-    if (backendBase) candidates.push(`${backendBase}/ac_project/register.php`)
-    candidates.push(`${window.location.protocol}//${window.location.hostname}/ac_project/register.php`)
-    candidates.push('http://localhost/ac_project/register.php')
-    candidates.push('http://127.0.0.1/ac_project/register.php')
+    // Prefer same-origin register endpoint, then common dev paths
+    if (backendBase) candidates.push(`${backendBase}/register.php`)
+    candidates.push(`${window.location.origin}/register.php`)
+    candidates.push('/adii/register.php')
+    // legacy/dev paths
+    if (backendBase) candidates.push(`${backendBase}/adii/register.php`)
+    candidates.push(`${window.location.protocol}//${window.location.hostname}/adii/register.php`)
+    candidates.push('http://localhost/adii/register.php')
+    candidates.push('http://127.0.0.1/adii/register.php')
 
     let lastError = null
     let handled = false
