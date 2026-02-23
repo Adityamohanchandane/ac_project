@@ -1,8 +1,18 @@
 <?php
 // Enable output buffering and error handling for JSON responses
 ob_start();
-error_reporting(0);
-ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Add CORS headers
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Accept");
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
+}
 
 // Log every request arrival (minimal, no output)
 @file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] REQUEST: " . ($_SERVER['REQUEST_METHOD'] ?? '-') . " " . ($_SERVER['REQUEST_URI'] ?? '-') . " AJAX=" . (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false ? '1' : '0') . PHP_EOL, FILE_APPEND | LOCK_EX);
@@ -11,14 +21,17 @@ require_once __DIR__ . '/db.php';
 session_start();
 
 // Function to send clean JSON response
-function send_json_response($success, $message) {
-    // Clean any output buffer
-    ob_clean();
-    // Set headers
-    header('Content-Type: application/json');
-    // Send response
-    echo json_encode(['success' => $success, 'message' => $message]);
-    exit;
+if (!function_exists('send_json_response')) {
+    function send_json_response($success, $message) {
+        // Clean any output buffer
+        ob_clean();
+        // Set headers
+        header('Content-Type: application/json');
+        header("Access-Control-Allow-Origin: *");
+        // Send response
+        echo json_encode(['success' => $success, 'message' => $message]);
+        exit;
+    }
 }
 
 // Simple debug logger (appends to debug.log). Safe for local debugging.
