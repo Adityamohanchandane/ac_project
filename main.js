@@ -974,7 +974,9 @@ async function handleUserRegister(form) {
     // Try multiple possible backend endpoints to avoid dev-server vs Apache routing issues
     const tried = []
     const candidates = []
+    candidates.push('http://localhost:8080/register.php')
     candidates.push('http://localhost/register.php')
+    candidates.push('http://127.0.0.1:8080/register.php')
     candidates.push('http://127.0.0.1/register.php')
     if (backendBase) candidates.push(`${backendBase}/register.php`)
     candidates.push(`${window.location.protocol}//${window.location.hostname}/register.php`)
@@ -1043,7 +1045,7 @@ async function handleUserLogin(form) {
     payload.append('email', email)
     payload.append('password', password)
 
-    const res = await fetch('http://localhost/login.php', {
+    const res = await fetch('http://localhost:8080/login.php', {
       method: 'POST',
       headers: { 'Accept': 'application/json' },
       body: payload,
@@ -1074,7 +1076,7 @@ async function handlePoliceLogin(form) {
     payload.append('email', email)
     payload.append('password', password)
 
-    const res = await fetch('http://localhost/police-login.php', {
+    const res = await fetch('http://localhost:8080/police-login.php', {
       method: 'POST',
       headers: { 'Accept': 'application/json' },
       body: payload,
