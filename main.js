@@ -595,23 +595,52 @@ function renderUserLogin() {
   }
 
   return `
-    <div class="login-container">
-      <div class="login-card">
-        <h2><i class="bi bi-person-check"></i> Citizen Login</h2>
-        <form id="loginForm">
-          <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-control" id="loginEmail" required>
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow">
+            <div class="card-body p-4">
+              <div class="text-center mb-4">
+                <div class="badge bg-success text-white p-2 mb-3">
+                  <i class="bi bi-person-check me-2"></i>CITIZEN LOGIN
+                </div>
+                <h3 class="card-title">Welcome Back</h3>
+                <p class="text-muted small">Login to file and track complaints</p>
+              </div>
+              
+              <form id="loginForm">
+                <div class="mb-3">
+                  <label for="loginEmail" class="form-label">Email Address</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" class="form-control" id="loginEmail" placeholder="Enter your email" required>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="loginPassword" class="form-label">Password</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" class="form-control" id="loginPassword" placeholder="Enter your password" required>
+                  </div>
+                </div>
+                
+                <div id="loginAlert"></div>
+                
+                <div class="d-grid">
+                  <button type="submit" class="btn btn-success btn-lg">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                  </button>
+                </div>
+              </form>
+              
+              <div class="text-center mt-4 pt-3 border-top">
+                <p class="mb-2">Don't have an account? <a href="#/user-register" class="text-decoration-none">Register here</a></p>
+                <p class="mb-0"><small>Police Officer? <a href="#/police-login" class="text-decoration-none">Login here</a></small></p>
+              </div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="loginPassword" required>
-          </div>
-          <div id="loginAlert"></div>
-          <button type="submit" class="btn btn-primary w-100">Login</button>
-        </form>
-        <p class="text-center mt-3">Don't have an account? <a href="#/user-register">Register here</a></p>
-        <p class="text-center"><small>Police Officer? <a href="#/police-login">Login here</a></small></p>
+        </div>
       </div>
     </div>
   `
@@ -623,30 +652,62 @@ function renderPoliceLogin() {
   }
 
   return `
-    <div class="login-container">
-      <div class="login-card">
-        <h2><i class="bi bi-shield-check"></i> Police Login</h2>
-        <div class="alert alert-info mb-3">
-          <small>This portal is exclusively for authorized police officers only.</small>
-        </div>
-        <div class="alert alert-success mb-3">
-          <small><strong>Test Credentials:</strong><br>
-          📧 Email: police@observx.com<br>
-          🔑 Password: police123</small>
-        </div>
-        <form id="policeLoginForm">
-          <div class="mb-3">
-            <label class="form-label">Police Email ID</label>
-            <input type="email" class="form-control" id="policeEmail" placeholder="police@observx.com" value="police@observx.com" required>
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow">
+            <div class="card-body p-4">
+              <div class="text-center mb-4">
+                <div class="badge bg-primary text-white p-2 mb-3">
+                  <i class="bi bi-shield-lock me-2"></i>POLICE PORTAL
+                </div>
+                <h3 class="card-title">Police Admin Login</h3>
+                <p class="text-muted small">Authorized personnel only</p>
+              </div>
+              
+              <div class="alert alert-info mb-3">
+                <small><i class="bi bi-info-circle me-2"></i>This portal is exclusively for authorized police officers only.</small>
+              </div>
+              
+              <div class="alert alert-success mb-3">
+                <small><strong><i class="bi bi-key me-2"></i>Test Credentials:</strong><br>
+                📧 Email: police@observx.com<br>
+                🔑 Password: police123</small>
+              </div>
+              
+              <form id="policeLoginForm">
+                <div class="mb-3">
+                  <label for="policeEmail" class="form-label">Police Email ID</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" class="form-control" id="policeEmail" placeholder="police@observx.com" value="police@observx.com" required>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="policePassword" class="form-label">Password</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" class="form-control" id="policePassword" placeholder="police123" value="police123" required>
+                  </div>
+                </div>
+                
+                <div id="policeLoginAlert"></div>
+                
+                <div class="d-grid">
+                  <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-shield-check me-2"></i>Login to Portal
+                  </button>
+                </div>
+              </form>
+              
+              <div class="text-center mt-4 pt-3 border-top">
+                <p class="text-muted small mb-0">For access issues, contact your administrator</p>
+                <p class="mb-0"><a href="#/" class="text-decoration-none">← Back to Home</a></p>
+              </div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="policePassword" placeholder="police123" value="police123" required>
-          </div>
-          <div id="policeLoginAlert"></div>
-          <button type="submit" class="btn btn-secondary w-100">Login</button>
-        </form>
-        <p class="text-center mt-3"><a href="#/">Back to Home</a></p>
+        </div>
       </div>
     </div>
   `
