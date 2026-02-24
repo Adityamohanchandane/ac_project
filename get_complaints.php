@@ -13,7 +13,7 @@ require_once __DIR__ . '/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // For now, get all complaints (in real app, filter by user_id)
-    $sql = "SELECT id, complaint_id, title, category, description, status, created_at, updated_at 
+    $sql = "SELECT id, complaint_id, user_id, title, category, description, status, created_at, updated_at 
              FROM complaints 
              ORDER BY created_at DESC";
     
@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $complaints[] = [
             'id' => $row['id'],
             'complaint_id' => $row['complaint_id'],
+            'user_id' => $row['user_id'],
             'title' => $row['title'],
             'category' => $row['category'],
             'description' => $row['description'],

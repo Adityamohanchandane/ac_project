@@ -1655,16 +1655,16 @@ async function loadComplaintsFromPHP(container, statusFilter = '', categoryFilte
     // Filter complaints based on user role and filters
     let filteredComplaints = complaints
     
-    if (currentUserRole === 'user' && currentUser) {
-      filteredComplaints = complaints.filter(c => c.user_id === currentUser.id)
+    if (currentUserRole === 'user' && currentUser && currentUser.id) {
+      filteredComplaints = complaints.filter(c => c && c.user_id === currentUser.id)
     }
     
     if (statusFilter) {
-      filteredComplaints = filteredComplaints.filter(c => c.status === statusFilter)
+      filteredComplaints = filteredComplaints.filter(c => c && c.status === statusFilter)
     }
     
     if (categoryFilter) {
-      filteredComplaints = filteredComplaints.filter(c => c.category === categoryFilter)
+      filteredComplaints = filteredComplaints.filter(c => c && c.category === categoryFilter)
     }
     
     if (currentUserRole === 'police') {
