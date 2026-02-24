@@ -368,7 +368,7 @@ async function loadPage(route) {
       
       // Attach emergency location capture button listener if on emergency complaint page
       if (route === 'emergency-complaint') {
-        const captureBtn = document.getElementById('captureEmergencyLocation')
+        const captureBtn = document.getElementById('capturePhotoLocation')
         if (captureBtn) {
           captureBtn.addEventListener('click', async (e) => {
             e.preventDefault()
@@ -385,7 +385,7 @@ async function loadPage(route) {
               })
               
               const { latitude, longitude } = position.coords
-              const locationInput = document.getElementById('emergencyUserLocation')
+              const locationInput = document.getElementById('photoLocation')
               locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
               locationInput.setAttribute('data-location', JSON.stringify({
                 lat: latitude,
@@ -399,20 +399,20 @@ async function loadPage(route) {
               
               setTimeout(() => {
                 captureBtn.disabled = false
-                captureBtn.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Capture Location'
+                captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
                 captureBtn.classList.remove('btn-success')
                 captureBtn.classList.add('btn-danger')
               }, 2000)
               
             } catch (error) {
-              console.error('Emergency location capture failed:', error)
+              console.error('Photo location capture failed:', error)
               captureBtn.innerHTML = '<i class="bi bi-x-circle"></i> Failed'
               captureBtn.classList.remove('btn-danger')
               captureBtn.classList.add('btn-outline-danger')
               
               setTimeout(() => {
                 captureBtn.disabled = false
-                captureBtn.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Capture Location'
+                captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
                 captureBtn.classList.remove('btn-outline-danger')
                 captureBtn.classList.add('btn-danger')
               }, 2000)
@@ -919,38 +919,44 @@ function renderEmergencyComplaint() {
             <p class="text-danger fw-bold">This will be prioritized for immediate action</p>
             
             <form id="emergencyComplaintForm">
-              <div class="mb-3">
-                <label class="form-label">Emergency Type <span class="text-danger">*</span></label>
-                <select class="form-select border-danger" id="emergencyType" required>
-                  <option value="">Select emergency type</option>
-                  <option value="life-threatening">Life Threatening Situation</option>
-                  <option value="crime-in-progress">Crime in Progress</option>
-                  <option value="accident">Serious Accident</option>
-                  <option value="fire">Fire Emergency</option>
-                  <option value="medical-emergency">Medical Emergency</option>
-                  <option value="missing-child">Missing Child</option>
-                  <option value="domestic-violence">Domestic Violence</option>
-                  <option value="other-emergency">Other Emergency</option>
-                </select>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Urgency Level <span class="text-danger">*</span></label>
-                <div class="btn-group w-100" role="group">
-                  <input type="radio" class="btn-check" name="urgency" id="urgency-critical" value="critical" required>
-                  <label class="btn btn-outline-danger" for="urgency-critical">
-                    <i class="bi bi-exclamation-triangle"></i> Critical
-                  </label>
-                  
-                  <input type="radio" class="btn-check" name="urgency" id="urgency-high" value="high" required>
-                  <label class="btn btn-outline-warning" for="urgency-high">
-                    <i class="bi bi-exclamation-circle"></i> High
-                  </label>
-                  
-                  <input type="radio" class="btn-check" name="urgency" id="urgency-medium" value="medium" required>
-                  <label class="btn btn-outline-info" for="urgency-medium">
-                    <i class="bi bi-info-circle"></i> Medium
-                  </label>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Emergency Type <span class="text-danger">*</span></label>
+                    <select class="form-select border-danger" id="emergencyType" required>
+                      <option value="">Select emergency type</option>
+                      <option value="life-threatening">Life Threatening</option>
+                      <option value="crime-in-progress">Crime in Progress</option>
+                      <option value="accident">Serious Accident</option>
+                      <option value="fire">Fire Emergency</option>
+                      <option value="medical-emergency">Medical Emergency</option>
+                      <option value="missing-child">Missing Child</option>
+                      <option value="domestic-violence">Domestic Violence</option>
+                      <option value="other-emergency">Other Emergency</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Urgency Level <span class="text-danger">*</span></label>
+                    <div class="btn-group w-100" role="group">
+                      <input type="radio" class="btn-check" name="urgency" id="urgency-critical" value="critical" required>
+                      <label class="btn btn-outline-danger" for="urgency-critical">
+                        <i class="bi bi-exclamation-triangle"></i> Critical
+                      </label>
+                      
+                      <input type="radio" class="btn-check" name="urgency" id="urgency-high" value="high" required>
+                      <label class="btn btn-outline-warning" for="urgency-high">
+                        <i class="bi bi-exclamation-circle"></i> High
+                      </label>
+                      
+                      <input type="radio" class="btn-check" name="urgency" id="urgency-medium" value="medium" required>
+                      <label class="btn btn-outline-info" for="urgency-medium">
+                        <i class="bi bi-info-circle"></i> Medium
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -959,38 +965,48 @@ function renderEmergencyComplaint() {
                 <input type="text" class="form-control border-danger" id="emergencyTitle" placeholder="Brief description of emergency" required>
               </div>
               
-              <div class="mb-3">
-                <label class="form-label">Current Location (Auto-captured) <span class="text-danger">*</span></label>
-                <div class="input-group">
-                  <input type="text" class="form-control border-danger" id="emergencyUserLocation" placeholder="Waiting for GPS..." readonly>
-                  <button class="btn btn-danger" type="button" id="captureEmergencyLocation">
-                    <i class="bi bi-geo-alt-fill"></i> Capture Location
-                  </button>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Photo Location <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                      <input type="text" class="form-control border-danger" id="photoLocation" placeholder="Where photo was taken" required>
+                      <button class="btn btn-danger" type="button" id="capturePhotoLocation">
+                        <i class="bi bi-camera"></i> Capture
+                      </button>
+                    </div>
+                    <small class="text-danger">Location where the photo/evidence was captured</small>
+                  </div>
                 </div>
-                <small class="text-danger">Your exact location is crucial for emergency response</small>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Emergency Location <span class="text-danger">*</span></label>
-                <input type="text" class="form-control border-danger" id="emergencyLocation" placeholder="Exact location of emergency" required>
-                <small class="text-danger">Provide precise address or GPS coordinates</small>
+                
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Upload Photo <span class="text-danger">*</span></label>
+                    <input type="file" class="form-control border-danger" id="emergencyPhoto" accept="image/*" required>
+                    <small class="text-danger">Photo evidence is required for emergency complaints</small>
+                  </div>
+                </div>
               </div>
               
               <div class="mb-3">
                 <label class="form-label">Emergency Description <span class="text-danger">*</span></label>
-                <textarea class="form-control border-danger" id="emergencyDescription" rows="5" placeholder="Describe the emergency situation in detail" required></textarea>
+                <textarea class="form-control border-danger" id="emergencyDescription" rows="3" placeholder="Describe the emergency situation in detail" required></textarea>
               </div>
               
-              <div class="mb-3">
-                <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-                <input type="tel" class="form-control border-danger" id="emergencyContact" placeholder="Your mobile number for immediate contact" required>
-                <small class="text-danger">Police may contact you immediately for more information</small>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Upload Evidence (Optional)</label>
-                <input type="file" class="form-control" id="emergencyEvidenceFile" accept=".pdf,.jpg,.jpeg,.png,.mp4,.gif">
-                <small class="text-muted">Accepted: PDF, JPG, PNG, MP4, GIF (Max 10MB)</small>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Contact Number <span class="text-danger">*</span></label>
+                    <input type="tel" class="form-control border-danger" id="emergencyContact" placeholder="Your mobile number" required>
+                  </div>
+                </div>
+                
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Your Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control border-danger" id="emergencyName" placeholder="Your full name" required>
+                  </div>
+                </div>
               </div>
               
               <div class="mb-3">
@@ -1003,6 +1019,7 @@ function renderEmergencyComplaint() {
               </div>
               
               <div id="emergencyComplaintAlert"></div>
+              
               <button type="submit" class="btn btn-danger w-100 btn-lg">
                 <i class="bi bi-exclamation-triangle-fill"></i> Submit Emergency Complaint
               </button>
@@ -1835,11 +1852,11 @@ async function handleEmergencyComplaintSubmit(form) {
   const emergencyType = document.getElementById('emergencyType').value
   const urgencyLevel = document.querySelector('input[name="urgency"]:checked')?.value
   const title = document.getElementById('emergencyTitle').value
-  const userLocationInput = document.getElementById('emergencyUserLocation')
-  const emergencyLocation = document.getElementById('emergencyLocation').value
+  const photoLocation = document.getElementById('photoLocation').value
+  const emergencyPhoto = document.getElementById('emergencyPhoto').files[0]
   const description = document.getElementById('emergencyDescription').value
   const contactNumber = document.getElementById('emergencyContact').value
-  const evidenceFile = document.getElementById('emergencyEvidenceFile').files[0]
+  const emergencyName = document.getElementById('emergencyName').value
   const confirmEmergency = document.getElementById('confirmEmergency').checked
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
@@ -1848,28 +1865,9 @@ async function handleEmergencyComplaintSubmit(form) {
       throw new Error('Please confirm this is a genuine emergency')
     }
 
-    // Parse user location from data attribute
-    let userLocation = null
-    const userLocationStr = userLocationInput.getAttribute('data-location')
-    
-    if (userLocationStr) {
-      try {
-        userLocation = JSON.parse(userLocationStr)
-      } catch (e) {
-        console.warn('Invalid location format, continuing without location')
-      }
-    } else {
-      // Use dummy location for testing
-      userLocation = {
-        lat: 19.0760,
-        lng: 72.8777,
-        address: "Mumbai, Maharashtra"
-      }
-    }
-
-    // Emergency location data
-    const emergencyLocationData = {
-      address: emergencyLocation,
+    // Photo location data
+    const photoLocationData = {
+      address: photoLocation,
       captured_at: new Date().toISOString()
     }
 
@@ -1878,12 +1876,12 @@ async function handleEmergencyComplaintSubmit(form) {
       title: `[EMERGENCY] ${title}`,
       category: emergencyType,
       incident_date: new Date().toISOString().split('T')[0],
-      user_location: userLocation,
-      crime_location: emergencyLocationData,
-      description: `EMERGENCY TYPE: ${emergencyType}\nURGENCY: ${urgencyLevel}\nCONTACT: ${contactNumber}\n\n${description}`,
+      photo_location: photoLocationData,
+      description: `EMERGENCY TYPE: ${emergencyType}\nURGENCY: ${urgencyLevel}\nCONTACT: ${contactNumber}\nNAME: ${emergencyName}\n\n${description}`,
       emergency_type: emergencyType,
       urgency_level: urgencyLevel,
       contact_number: contactNumber,
+      name: emergencyName,
       is_emergency: true
     }
 
@@ -1894,17 +1892,17 @@ async function handleEmergencyComplaintSubmit(form) {
     formData.append('title', payload.title)
     formData.append('category', payload.category)
     formData.append('incident_date', payload.incident_date)
-    formData.append('user_location', JSON.stringify(payload.user_location))
-    formData.append('crime_location', JSON.stringify(payload.crime_location))
+    formData.append('photo_location', JSON.stringify(payload.photo_location))
     formData.append('description', payload.description)
     formData.append('emergency_type', payload.emergency_type)
     formData.append('urgency_level', payload.urgency_level)
     formData.append('contact_number', payload.contact_number)
+    formData.append('name', payload.name)
     formData.append('is_emergency', payload.is_emergency)
     formData.append('user_id', currentUser?.id || 'anonymous')
     
-    if (evidenceFile) {
-      formData.append('evidence_file', evidenceFile)
+    if (emergencyPhoto) {
+      formData.append('evidence_file', emergencyPhoto)
     }
 
     const res = await fetch('http://localhost:8080/file_complaint.php', {
