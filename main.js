@@ -1796,25 +1796,30 @@ function renderUserComplaints(complaints) {
   const container = document.getElementById('myComplaintsContainer')
   let html = ''
 
+  if (!complaints || complaints.length === 0) {
+    container.innerHTML = '<div class="alert alert-info">No complaints found</div>'
+    return
+  }
+
   complaints.forEach(complaint => {
-    const badgeClass = `badge-${complaint.status}`
-    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)
+    const badgeClass = `badge-${complaint.status || 'pending'}`
+    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : 
+                      complaint.status ? complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1) : 'Pending'
 
     html += `
-      <div class="complaint-card ${complaint.status}">
+      <div class="complaint-card ${complaint.status || 'pending'}">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <div>
-            <h5 class="mb-1">${complaint.title}</h5>
-            <small class="text-muted">ID: ${complaint.complaint_id}</small>
+            <h5 class="mb-1">${complaint.title || 'Untitled Complaint'}</h5>
+            <small class="text-muted">ID: ${complaint.complaint_id || 'N/A'}</small>
           </div>
           <span class="badge ${badgeClass}">${statusText}</span>
         </div>
-        <p class="mb-2"><strong>Category:</strong> ${complaint.category}</p>
-        <p class="mb-2"><strong>Location:</strong> ${complaint.location}</p>
-        <p class="mb-2"><strong>Date:</strong> ${new Date(complaint.incident_date).toLocaleDateString()}</p>
-        <p class="text-muted">${complaint.description.substring(0, 100)}...</p>
+        <p class="mb-2"><strong>Category:</strong> ${complaint.category || 'Not specified'}</p>
+        <p class="mb-2"><strong>Date:</strong> ${complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : 'Not specified'}</p>
+        <p class="text-muted">${complaint.description ? complaint.description.substring(0, 100) + '...' : 'No description available'}</p>
         ${complaint.police_remarks ? `<p class="mt-2 p-2 bg-light rounded"><strong>Police Remarks:</strong> ${complaint.police_remarks}</p>` : ''}
-        <button class="btn btn-sm btn-outline-primary mt-2" onclick="location.hash='#/view-complaint?id=${complaint.id}'">View Details</button>
+        <button class="btn btn-sm btn-outline-primary mt-2" onclick="location.hash='#/view-complaint?id=${complaint.id || ''}'">View Details</button>
       </div>
     `
   })
@@ -1824,6 +1829,12 @@ function renderUserComplaints(complaints) {
 
 function renderPoliceComplaintsTable(complaints) {
   const container = document.getElementById('complaintsTableContainer')
+  
+  if (!complaints || complaints.length === 0) {
+    container.innerHTML = '<div class="alert alert-info">No complaints found</div>'
+    return
+  }
+  
   let html = `
     <div class="table-responsive">
       <table class="table table-hover">
@@ -1842,22 +1853,23 @@ function renderPoliceComplaintsTable(complaints) {
   `
 
   complaints.forEach(complaint => {
-    const badgeClass = `badge-${complaint.status}`
-    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)
+    const badgeClass = `badge-${complaint.status || 'pending'}`
+    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : 
+                      complaint.status ? complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1) : 'Pending'
 
     html += `
       <tr>
-        <td><strong>${complaint.complaint_id}</strong></td>
-        <td>${complaint.user_id.substring(0, 8)}...</td>
-        <td>${complaint.title}</td>
-        <td>${complaint.category}</td>
+        <td><strong>${complaint.complaint_id || 'N/A'}</strong></td>
+        <td>${complaint.user_id ? complaint.user_id.substring(0, 8) + '...' : 'Unknown'}</td>
+        <td>${complaint.title || 'Untitled'}</td>
+        <td>${complaint.category || 'Not specified'}</td>
         <td><span class="badge ${badgeClass}">${statusText}</span></td>
-        <td>${new Date(complaint.created_at).toLocaleDateString()}</td>
+        <td>${complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : 'Not specified'}</td>
         <td>
-          <button class="btn btn-sm btn-primary" onclick="location.hash='#/view-complaint?id=${complaint.id}'">
+          <button class="btn btn-sm btn-primary" onclick="location.hash='#/view-complaint?id=${complaint.id || ''}'">
             View
           </button>
-          <button class="btn btn-sm btn-warning" onclick="location.hash='#/update-complaint?id=${complaint.id}'">
+          <button class="btn btn-sm btn-warning" onclick="location.hash='#/update-complaint?id=${complaint.id || ''}'">
             Update
           </button>
         </td>
