@@ -148,7 +148,7 @@ const pages = {
   'user-dashboard-enhanced': () => window.location.href = 'user_dashboard_enhanced.html',
   'police-dashboard': renderPoliceDashboard,
   'file-complaint': renderFileComplaint,
-  'emergency-complaint': () => window.location.href = 'emergency_complaint.html',
+  'emergency-complaint': renderEmergencyComplaint,
   'view-complaint': renderViewComplaint,
   'my-complaints': renderMyComplaints,
   'view-complaints': renderViewComplaints,
@@ -757,7 +757,20 @@ function renderFileComplaint() {
       <div class="row">
         <div class="col-lg-8 mx-auto">
           <div class="form-section">
-            <h2><i class="bi bi-file-earmark-text"></i> File a Complaint</h2>
+            <div class="text-center mb-4">
+              <div class="btn-group" role="group">
+                <a href="#/file-complaint" class="btn btn-outline-primary active">
+                  <i class="bi bi-file-earmark-text"></i> Normal Complaint
+                </a>
+                <a href="#/emergency-complaint" class="btn btn-outline-danger">
+                  <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
+                </a>
+              </div>
+            </div>
+            
+            <h2><i class="bi bi-file-earmark-text"></i> File a Normal Complaint</h2>
+            <p class="text-muted">For non-urgent complaints that will be processed within 24-48 hours</p>
+            
             <form id="complaintForm">
               <div class="mb-3">
                 <label class="form-label">Complaint Title <span class="text-danger">*</span></label>
@@ -805,7 +818,137 @@ function renderFileComplaint() {
                 <small class="text-muted">Accepted: PDF, JPG, PNG, MP4, GIF (Max 10MB)</small>
               </div>
               <div id="complaintAlert"></div>
-              <button type="submit" class="btn btn-primary w-100">Submit Complaint</button>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-file-earmark-plus"></i> Submit Normal Complaint
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function renderEmergencyComplaint() {
+  if (!currentUser || currentUserRole === 'police') {
+    return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
+  }
+
+  return `
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto">
+          <div class="form-section emergency-section">
+            <div class="alert alert-danger d-flex align-items-center mb-4">
+              <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+              <div>
+                <strong>EMERGENCY COMPLAINT</strong>
+                <div class="small">For urgent matters requiring immediate police attention</div>
+              </div>
+            </div>
+            
+            <div class="text-center mb-4">
+              <div class="btn-group" role="group">
+                <a href="#/file-complaint" class="btn btn-outline-primary">
+                  <i class="bi bi-file-earmark-text"></i> Normal Complaint
+                </a>
+                <a href="#/emergency-complaint" class="btn btn-outline-danger active">
+                  <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
+                </a>
+              </div>
+            </div>
+            
+            <h2 class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> File an Emergency Complaint</h2>
+            <p class="text-danger fw-bold">This will be prioritized for immediate action</p>
+            
+            <form id="emergencyComplaintForm">
+              <div class="mb-3">
+                <label class="form-label">Emergency Type <span class="text-danger">*</span></label>
+                <select class="form-select border-danger" id="emergencyType" required>
+                  <option value="">Select emergency type</option>
+                  <option value="life-threatening">Life Threatening Situation</option>
+                  <option value="crime-in-progress">Crime in Progress</option>
+                  <option value="accident">Serious Accident</option>
+                  <option value="fire">Fire Emergency</option>
+                  <option value="medical-emergency">Medical Emergency</option>
+                  <option value="missing-child">Missing Child</option>
+                  <option value="domestic-violence">Domestic Violence</option>
+                  <option value="other-emergency">Other Emergency</option>
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Urgency Level <span class="text-danger">*</span></label>
+                <div class="btn-group w-100" role="group">
+                  <input type="radio" class="btn-check" name="urgency" id="urgency-critical" value="critical" required>
+                  <label class="btn btn-outline-danger" for="urgency-critical">
+                    <i class="bi bi-exclamation-triangle"></i> Critical
+                  </label>
+                  
+                  <input type="radio" class="btn-check" name="urgency" id="urgency-high" value="high" required>
+                  <label class="btn btn-outline-warning" for="urgency-high">
+                    <i class="bi bi-exclamation-circle"></i> High
+                  </label>
+                  
+                  <input type="radio" class="btn-check" name="urgency" id="urgency-medium" value="medium" required>
+                  <label class="btn btn-outline-info" for="urgency-medium">
+                    <i class="bi bi-info-circle"></i> Medium
+                  </label>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Emergency Title <span class="text-danger">*</span></label>
+                <input type="text" class="form-control border-danger" id="emergencyTitle" placeholder="Brief description of emergency" required>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Current Location (Auto-captured) <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control border-danger" id="emergencyUserLocation" placeholder="Waiting for GPS..." readonly>
+                  <button class="btn btn-danger" type="button" id="captureEmergencyLocation">
+                    <i class="bi bi-geo-alt-fill"></i> Capture Location
+                  </button>
+                </div>
+                <small class="text-danger">Your exact location is crucial for emergency response</small>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Emergency Location <span class="text-danger">*</span></label>
+                <input type="text" class="form-control border-danger" id="emergencyLocation" placeholder="Exact location of emergency" required>
+                <small class="text-danger">Provide precise address or GPS coordinates</small>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Emergency Description <span class="text-danger">*</span></label>
+                <textarea class="form-control border-danger" id="emergencyDescription" rows="5" placeholder="Describe the emergency situation in detail" required></textarea>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Contact Number <span class="text-danger">*</span></label>
+                <input type="tel" class="form-control border-danger" id="emergencyContact" placeholder="Your mobile number for immediate contact" required>
+                <small class="text-danger">Police may contact you immediately for more information</small>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Upload Evidence (Optional)</label>
+                <input type="file" class="form-control" id="emergencyEvidenceFile" accept=".pdf,.jpg,.jpeg,.png,.mp4,.gif">
+                <small class="text-muted">Accepted: PDF, JPG, PNG, MP4, GIF (Max 10MB)</small>
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="confirmEmergency" required>
+                  <label class="form-check-label text-danger" for="confirmEmergency">
+                    I confirm this is a genuine emergency requiring immediate police attention
+                  </label>
+                </div>
+              </div>
+              
+              <div id="emergencyComplaintAlert"></div>
+              <button type="submit" class="btn btn-danger w-100 btn-lg">
+                <i class="bi bi-exclamation-triangle-fill"></i> Submit Emergency Complaint
+              </button>
             </form>
           </div>
         </div>
@@ -1254,6 +1397,9 @@ document.addEventListener('submit', async (e) => {
   } else if (form.id === 'complaintForm') {
     e.preventDefault()
     await handleComplaintSubmit(form)
+  } else if (form.id === 'emergencyComplaintForm') {
+    e.preventDefault()
+    await handleEmergencyComplaintSubmit(form)
   } else if (form.id === 'updateComplaintForm') {
     e.preventDefault()
     await handleUpdateComplaint(form)
@@ -1474,7 +1620,7 @@ async function handleComplaintSubmit(form) {
   const userLocationInput = document.getElementById('userLocation')
   const crimeLocation = document.getElementById('crimeLocation').value
   const description = document.getElementById('description').value
-  const evidenceFile = document.getElementById('evidence').files[0]
+  const evidenceFile = document.getElementById('evidenceFile').files[0]
   const alertDiv = document.getElementById('complaintAlert')
 
   try {
@@ -1589,6 +1735,135 @@ async function handleComplaintSubmit(form) {
     }, 2000)
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
+  }
+}
+
+async function handleEmergencyComplaintSubmit(form) {
+  const emergencyType = document.getElementById('emergencyType').value
+  const urgencyLevel = document.querySelector('input[name="urgency"]:checked')?.value
+  const title = document.getElementById('emergencyTitle').value
+  const userLocationInput = document.getElementById('emergencyUserLocation')
+  const emergencyLocation = document.getElementById('emergencyLocation').value
+  const description = document.getElementById('emergencyDescription').value
+  const contactNumber = document.getElementById('emergencyContact').value
+  const evidenceFile = document.getElementById('emergencyEvidenceFile').files[0]
+  const confirmEmergency = document.getElementById('confirmEmergency').checked
+  const alertDiv = document.getElementById('emergencyComplaintAlert')
+
+  try {
+    if (!confirmEmergency) {
+      throw new Error('Please confirm this is a genuine emergency')
+    }
+
+    // Parse user location from data attribute
+    let userLocation = null
+    const userLocationStr = userLocationInput.getAttribute('data-location')
+    
+    if (userLocationStr) {
+      try {
+        userLocation = JSON.parse(userLocationStr)
+      } catch (e) {
+        console.warn('Invalid location format, continuing without location')
+      }
+    } else {
+      // Use dummy location for testing
+      userLocation = {
+        lat: 19.0760,
+        lng: 72.8777,
+        address: "Mumbai, Maharashtra"
+      }
+    }
+
+    // Emergency location data
+    const emergencyLocationData = {
+      address: emergencyLocation,
+      captured_at: new Date().toISOString()
+    }
+
+    // Submit to backend with emergency data
+    const payload = {
+      title: `[EMERGENCY] ${title}`,
+      category: emergencyType,
+      incident_date: new Date().toISOString().split('T')[0],
+      user_location: userLocation,
+      crime_location: emergencyLocationData,
+      description: `EMERGENCY TYPE: ${emergencyType}\nURGENCY: ${urgencyLevel}\nCONTACT: ${contactNumber}\n\n${description}`,
+      emergency_type: emergencyType,
+      urgency_level: urgencyLevel,
+      contact_number: contactNumber,
+      is_emergency: true
+    }
+
+    console.log('Submitting emergency complaint:', payload)
+    
+    // Create FormData for file upload
+    const formData = new FormData()
+    formData.append('title', payload.title)
+    formData.append('category', payload.category)
+    formData.append('incident_date', payload.incident_date)
+    formData.append('user_location', JSON.stringify(payload.user_location))
+    formData.append('crime_location', JSON.stringify(payload.crime_location))
+    formData.append('description', payload.description)
+    formData.append('emergency_type', payload.emergency_type)
+    formData.append('urgency_level', payload.urgency_level)
+    formData.append('contact_number', payload.contact_number)
+    formData.append('is_emergency', payload.is_emergency)
+    formData.append('user_id', currentUser?.id || 'anonymous')
+    
+    if (evidenceFile) {
+      formData.append('evidence_file', evidenceFile)
+    }
+
+    const res = await fetch('http://localhost:8080/file_complaint.php', {
+      method: 'POST',
+      body: formData,
+      mode: 'cors'
+    })
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`)
+    }
+    
+    const responseText = await res.text()
+    console.log('Raw response:', responseText)
+    
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (e) {
+      console.error('JSON parse error:', e)
+      throw new Error('Server returned invalid response: ' + responseText)
+    }
+
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to file emergency complaint')
+    }
+
+    let successMessage = `<div class="alert alert-success alert-dismissible">
+      <strong><i class="bi bi-check-circle-fill"></i> Emergency Complaint Filed Successfully!</strong><br>
+      <strong>Complaint ID:</strong> ${data.complaint_id}<br>
+      <strong>Priority:</strong> ${urgencyLevel?.toUpperCase()}<br>
+      <small>Your emergency complaint has been marked for immediate attention.<br>
+      Police will contact you at ${contactNumber} if needed.</small>`
+    
+    if (data.evidence_file) {
+      successMessage += `<br><strong>Evidence File:</strong> ${data.evidence_file}`
+    }
+    
+    successMessage += `</div>`
+    
+    alertDiv.innerHTML = successMessage
+    form.reset()
+    document.getElementById('emergencyUserLocation').value = ''
+    document.getElementById('emergencyUserLocation').removeAttribute('data-location')
+    
+    setTimeout(() => {
+      location.hash = '#/my-complaints'
+    }, 3000)
+  } catch (error) {
+    alertDiv.innerHTML = `<div class="alert alert-danger alert-dismissible">
+      <strong><i class="bi bi-exclamation-triangle-fill"></i> Error:</strong> ${error.message}
+    </div>`
   }
 }
 
