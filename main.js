@@ -813,16 +813,6 @@ function renderFileComplaint() {
       <div class="row">
         <div class="col-lg-8 mx-auto">
           <div class="form-section">
-            <div class="text-center mb-4">
-              <div class="btn-group" role="group">
-                <a href="#/file-complaint" class="btn btn-outline-primary active">
-                  <i class="bi bi-file-earmark-text"></i> Normal Complaint
-                </a>
-                <a href="#/emergency-complaint" class="btn btn-outline-danger">
-                  <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
-                </a>
-              </div>
-            </div>
             
             <h2><i class="bi bi-file-earmark-text"></i> File a Normal Complaint</h2>
             <p class="text-muted">For non-urgent complaints that will be processed within 24-48 hours</p>
@@ -901,17 +891,6 @@ function renderEmergencyComplaint() {
               <div>
                 <strong>EMERGENCY COMPLAINT</strong>
                 <div class="small">For urgent matters requiring immediate police attention</div>
-              </div>
-            </div>
-            
-            <div class="text-center mb-4">
-              <div class="btn-group" role="group">
-                <a href="#/file-complaint" class="btn btn-outline-primary">
-                  <i class="bi bi-file-earmark-text"></i> Normal Complaint
-                </a>
-                <a href="#/emergency-complaint" class="btn btn-outline-danger active">
-                  <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
-                </a>
               </div>
             </div>
             
