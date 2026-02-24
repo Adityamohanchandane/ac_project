@@ -212,17 +212,22 @@ async function checkAuth() {
     if (data.session) {
       currentUser = data.session.user
       
-      // Fetch user role
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('role, full_name, avatar_url')
-        .eq('id', currentUser.id)
-        .maybeSingle()
+      // Fetch user role (only if Supabase is available)
+      if (supabase) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('role, full_name, avatar_url')
+          .eq('id', currentUser.id)
+          .maybeSingle()
+          
+        if (userError) throw userError
         
-      if (userError) throw userError
-      
-      currentUserRole = userData?.role || 'user'
-      currentUser = { ...currentUser, ...userData }
+        currentUserRole = userData?.role || 'user'
+        currentUser = { ...currentUser, ...userData }
+      } else {
+        // Use PHP session fallback for role
+        currentUserRole = 'user'
+      }
       
       updateAuthMenu()
       
@@ -1594,6 +1599,10 @@ async function handleUpdateComplaint(form) {
   const complaintId = new URLSearchParams(location.hash).get('id')
 
   try {
+    if (!supabase) {
+      throw new Error('Database not available')
+    }
+    
     const { error } = await supabase
       .from('complaints')
       .update({
@@ -1618,9 +1627,14 @@ async function handleUpdateComplaint(form) {
 async function logout() {
   try {
     setLoading(true)
-    const { error } = await supabase.auth.signOut()
     
-    if (error) throw error
+    if (supabase) {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+    }
+    
+    // Use PHP logout as fallback
+    fetch('http://localhost:8080/logout.php', { method: 'POST' })
     
     currentUser = null
     currentUserRole = null
@@ -1656,6 +1670,13 @@ async function loadComplaints() {
   const categoryFilter = document.getElementById('categoryFilter')?.value || ''
 
   try {
+    if (!supabase) {
+      // Use PHP fallback for complaints
+      container.innerHTML = '<div class="alert alert-info">Loading complaints from database...</div>'
+      loadComplaintsFromPHP(container, statusFilter, categoryFilter)
+      return
+    }
+    
     let query = supabase.from('complaints').select('*')
 
     if (currentUserRole === 'user') {
