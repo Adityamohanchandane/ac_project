@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complaint Forms - ObservX</title>
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .complaint-container {
+            padding: 2rem 0;
+        }
+        .form-switcher {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .emergency-section {
+            border: 2px solid var(--danger);
+            border-radius: 12px;
+            background: var(--danger-bg);
+            animation: pulse-border 2s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center text-white" href="#">
+                <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX" style="height: 30px; width: auto; margin-right: 8px;">
+                <span>ObservX</span>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link text-white" href="index.html">Home</a>
+                <a class="nav-link text-white" href="simple_complaint_test.html">Simple Test</a>
+                <a class="nav-link text-white" href="diagnostic.html">Diagnostic</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="complaint-container">
+        <div class="container">
+            <div class="text-center mb-4">
+                <h1><i class="bi bi-file-text"></i> Complaint Forms</h1>
+                <p class="text-muted">Choose between normal and emergency complaint filing</p>
+            </div>
+
+            <!-- Form Switcher -->
+            <div class="form-switcher">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary active" id="normalBtn">
+                        <i class="bi bi-file-earmark-text"></i> Normal Complaint
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" id="emergencyBtn">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
+                    </button>
+                </div>
+            </div>
+
+            <!-- Normal Complaint Form -->
+            <div id="normalForm">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <div class="form-section">
+                            <h2><i class="bi bi-file-earmark-text"></i> File a Normal Complaint</h2>
+                            <p class="text-muted">For non-urgent complaints that will be processed within 24-48 hours</p>
+                            
+                            <form id="complaintForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Complaint Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="complaintTitle" placeholder="Brief title of your complaint" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Category <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="category" required>
+                                        <option value="">Select a category</option>
+                                        <option value="theft">Theft & Robbery</option>
+                                        <option value="cyber-crime">Cyber Crime</option>
+                                        <option value="missing-person">Missing Person</option>
+                                        <option value="violence">Violence & Harassment</option>
+                                        <option value="fraud">Fraud & Forgery</option>
+                                        <option value="property">Property Damage</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Incident Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="incidentDate" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Your Current Location <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="userLocation" placeholder="Click to capture location" readonly>
+                                        <button class="btn btn-outline-secondary" type="button" id="captureUserLocation">
+                                            <i class="bi bi-geo-alt"></i> Capture
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Your current location will be recorded for verification</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Crime Location <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="crimeLocation" placeholder="Address or location of incident" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Description <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="description" rows="5" placeholder="Provide detailed information about the incident" required></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Upload Evidence (Optional)</label>
+                                    <input type="file" class="form-control" id="evidenceFile" accept=".pdf,.jpg,.jpeg,.png,.mp4,.gif">
+                                    <small class="text-muted">Accepted: PDF, JPG, PNG, MP4, GIF (Max 10MB)</small>
+                                </div>
+                                
+                                <div id="complaintAlert"></div>
+                                
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-file-earmark-plus"></i> Submit Normal Complaint
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Complaint Form -->
+            <div id="emergencyForm" style="display: none;">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <div class="form-section emergency-section">
+                            <div class="alert alert-danger d-flex align-items-center mb-4">
+                                <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                                <div>
+                                    <strong>EMERGENCY COMPLAINT</strong>
+                                    <div class="small">For urgent matters requiring immediate police attention</div>
+                                </div>
+                            </div>
+                            
+                            <h2 class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> File an Emergency Complaint</h2>
+                            <p class="text-danger fw-bold">This will be prioritized for immediate action</p>
+                            
+                            <form id="emergencyComplaintForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Emergency Type <span class="text-danger">*</span></label>
+                                    <select class="form-select border-danger" id="emergencyType" required>
+                                        <option value="">Select emergency type</option>
+                                        <option value="life-threatening">Life Threatening Situation</option>
+                                        <option value="crime-in-progress">Crime in Progress</option>
+                                        <option value="accident">Serious Accident</option>
+                                        <option value="fire">Fire Emergency</option>
+                                        <option value="medical-emergency">Medical Emergency</option>
+                                        <option value="missing-child">Missing Child</option>
+                                        <option value="domestic-violence">Domestic Violence</option>
+                                        <option value="other-emergency">Other Emergency</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Urgency Level <span class="text-danger">*</span></label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="urgency" id="urgency-critical" value="critical" required>
+                                        <label class="btn btn-outline-danger" for="urgency-critical">
+                                            <i class="bi bi-exclamation-triangle"></i> Critical
+                                        </label>
+                                        
+                                        <input type="radio" class="btn-check" name="urgency" id="urgency-high" value="high" required>
+                                        <label class="btn btn-outline-warning" for="urgency-high">
+                                            <i class="bi bi-exclamation-circle"></i> High
+                                        </label>
+                                        
+                                        <input type="radio" class="btn-check" name="urgency" id="urgency-medium" value="medium" required>
+                                        <label class="btn btn-outline-info" for="urgency-medium">
+                                            <i class="bi bi-info-circle"></i> Medium
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Emergency Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control border-danger" id="emergencyTitle" placeholder="Brief description of emergency" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Emergency Location <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control border-danger" id="emergencyLocation" placeholder="Exact location of emergency" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Emergency Description <span class="text-danger">*</span></label>
+                                    <textarea class="form-control border-danger" id="emergencyDescription" rows="5" placeholder="Describe the emergency situation in detail" required></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Contact Number <span class="text-danger">*</span></label>
+                                    <input type="tel" class="form-control border-danger" id="emergencyContact" placeholder="Your mobile number for immediate contact" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Upload Evidence (Optional)</label>
+                                    <input type="file" class="form-control" id="emergencyEvidenceFile" accept=".pdf,.jpg,.jpeg,.png,.mp4,.gif">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="confirmEmergency" required>
+                                        <label class="form-check-label text-danger" for="confirmEmergency">
+                                            I confirm this is a genuine emergency requiring immediate police attention
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div id="emergencyComplaintAlert"></div>
+                                
+                                <button type="submit" class="btn btn-danger w-100 btn-lg">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> Submit Emergency Complaint
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="bootstrap.bundle.min.js"></script>
+    <script>
+        // Form switching
+        const normalBtn = document.getElementById('normalBtn');
+        const emergencyBtn = document.getElementById('emergencyBtn');
+        const normalForm = document.getElementById('normalForm');
+        const emergencyForm = document.getElementById('emergencyForm');
+
+        normalBtn.addEventListener('click', () => {
+            normalBtn.classList.add('active');
+            normalBtn.classList.remove('btn-outline-primary');
+            normalBtn.classList.add('btn-primary');
+            
+            emergencyBtn.classList.remove('active');
+            emergencyBtn.classList.remove('btn-danger');
+            emergencyBtn.classList.add('btn-outline-danger');
+            
+            normalForm.style.display = 'block';
+            emergencyForm.style.display = 'none';
+        });
+
+        emergencyBtn.addEventListener('click', () => {
+            emergencyBtn.classList.add('active');
+            emergencyBtn.classList.remove('btn-outline-danger');
+            emergencyBtn.classList.add('btn-danger');
+            
+            normalBtn.classList.remove('active');
+            normalBtn.classList.remove('btn-primary');
+            normalBtn.classList.add('btn-outline-primary');
+            
+            emergencyForm.style.display = 'block';
+            normalForm.style.display = 'none';
+        });
+
+        // Form submissions
+        document.getElementById('complaintForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const alert = document.getElementById('complaintAlert');
+            alert.innerHTML = `
+                <div class="alert alert-success alert-dismissible">
+                    <strong>Success!</strong> Normal complaint form submitted successfully (Test Mode).
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            e.target.reset();
+        });
+
+        document.getElementById('emergencyComplaintForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const confirmEmergency = document.getElementById('confirmEmergency').checked;
+            const urgencyLevel = document.querySelector('input[name="urgency"]:checked')?.value;
+            
+            if (!confirmEmergency) {
+                const alert = document.getElementById('emergencyComplaintAlert');
+                alert.innerHTML = `
+                    <div class="alert alert-warning alert-dismissible">
+                        <strong>Warning!</strong> Please confirm this is a genuine emergency.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const alert = document.getElementById('emergencyComplaintAlert');
+            alert.innerHTML = `
+                <div class="alert alert-success alert-dismissible">
+                    <strong>Emergency Submitted!</strong> Your emergency complaint has been marked for immediate attention (Test Mode).
+                    <br><strong>Priority:</strong> ${urgencyLevel?.toUpperCase()}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            e.target.reset();
+        });
+
+        // Location capture
+        document.getElementById('captureUserLocation').addEventListener('click', async () => {
+            const btn = document.getElementById('captureUserLocation');
+            const locationInput = document.getElementById('userLocation');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...';
+            
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    });
+                });
+                
+                const { latitude, longitude } = position.coords;
+                locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                
+                btn.innerHTML = '<i class="bi bi-check-circle"></i> Captured';
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-secondary');
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Location capture failed:', error);
+                btn.innerHTML = '<i class="bi bi-x-circle"></i> Failed';
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-danger');
+                
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+                    btn.classList.remove('btn-danger');
+                    btn.classList.add('btn-outline-secondary');
+                }, 2000);
+            }
+        });
+
+        console.log('Complaint forms page loaded successfully');
+    </script>
+</body>
+</html>

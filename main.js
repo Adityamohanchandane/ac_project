@@ -464,6 +464,14 @@ function renderHome() {
         ${!currentUser ? `
           <a href="#/user-register" class="btn btn-light btn-lg me-2">Register Now</a>
           <a href="#/user-login" class="btn btn-outline-light btn-lg">Login</a>
+          <div class="mt-3">
+            <a href="#/file-complaint" class="btn btn-outline-light me-2">
+              <i class="bi bi-file-earmark-text"></i> File Normal Complaint
+            </a>
+            <a href="#/emergency-complaint" class="btn btn-danger">
+              <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
+            </a>
+          </div>
         ` : `
           <a href="#/file-complaint" class="btn btn-light btn-lg me-2">File Complaint</a>
           <a href="#/my-complaints" class="btn btn-outline-light btn-lg">View Status</a>
@@ -803,9 +811,10 @@ async function getUserLocation() {
 }
 
 function renderFileComplaint() {
-  if (!currentUser || currentUserRole === 'police') {
-    return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
-  }
+  // Temporarily remove login requirement for testing
+  // if (!currentUser || currentUserRole === 'police') {
+  //   return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
+  // }
 
   return `
     <div class="container">
@@ -885,9 +894,10 @@ function renderFileComplaint() {
 }
 
 function renderEmergencyComplaint() {
-  if (!currentUser || currentUserRole === 'police') {
-    return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
-  }
+  // Temporarily remove login requirement for testing
+  // if (!currentUser || currentUserRole === 'police') {
+  //   return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
+  // }
 
   return `
     <div class="container">
