@@ -453,58 +453,6 @@ async function loadPage(route) {
             }
           })
         }
-        
-        const capturePhotoBtn = document.getElementById('capturePhotoLocation')
-        if (capturePhotoBtn) {
-          capturePhotoBtn.addEventListener('click', async (e) => {
-            e.preventDefault()
-            capturePhotoBtn.disabled = true
-            capturePhotoBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...'
-            
-            try {
-              const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                  enableHighAccuracy: true,
-                  timeout: 10000,
-                  maximumAge: 0
-                })
-              })
-              
-              const { latitude, longitude } = position.coords
-              const locationInput = document.getElementById('photoLocation')
-              locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
-              locationInput.setAttribute('data-location', JSON.stringify({
-                lat: latitude,
-                lng: longitude,
-                captured_at: new Date().toISOString()
-              }))
-              
-              capturePhotoBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured'
-              capturePhotoBtn.classList.remove('btn-info')
-              capturePhotoBtn.classList.add('btn-success')
-              
-              setTimeout(() => {
-                capturePhotoBtn.disabled = false
-                capturePhotoBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
-                capturePhotoBtn.classList.remove('btn-success')
-                capturePhotoBtn.classList.add('btn-info')
-              }, 2000)
-              
-            } catch (error) {
-              console.error('Photo location capture failed:', error)
-              capturePhotoBtn.innerHTML = '<i class="bi bi-x-circle"></i> Failed'
-              capturePhotoBtn.classList.remove('btn-info')
-              capturePhotoBtn.classList.add('btn-outline-danger')
-              
-              setTimeout(() => {
-                capturePhotoBtn.disabled = false
-                capturePhotoBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
-                capturePhotoBtn.classList.remove('btn-outline-danger')
-                capturePhotoBtn.classList.add('btn-info')
-              }, 2000)
-            }
-          })
-        }
       }
     } else {
       content.innerHTML = `
@@ -1676,11 +1624,6 @@ function renderEmergencyComplaint() {
               </div>
               
               <div class="mb-3">
-                <label class="form-label">Emergency Title</label>
-                <input type="text" class="form-control border-info" id="emergencyTitle" placeholder="Brief description of emergency">
-              </div>
-              
-              <div class="mb-3">
                 <label class="form-label">Location</label>
                 <div class="input-group">
                   <input type="text" class="form-control border-info" id="emergencyLocation" placeholder="Where emergency occurred">
@@ -1692,50 +1635,19 @@ function renderEmergencyComplaint() {
               </div>
               
               <div class="mb-3">
-                <label class="form-label">Photo Location</label>
-                <div class="input-group">
-                  <input type="text" class="form-control border-info" id="photoLocation" placeholder="Where photo was taken">
-                  <button class="btn btn-info" type="button" id="capturePhotoLocation">
-                    <i class="bi bi-camera"></i> Capture
-                  </button>
-                </div>
-                <small class="text-muted">Location where the photo/evidence was captured</small>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Upload Photo</label>
-                <input type="file" class="form-control border-info" id="emergencyPhoto" accept="image/*">
-                <small class="text-muted">Photo evidence (optional)</small>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Emergency Description</label>
-                <textarea class="form-control border-info" id="emergencyDescription" rows="3" placeholder="Describe the emergency situation in detail"></textarea>
-              </div>
-              
-              <div class="mb-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="confirmEmergency">
-                  <label class="form-check-label text-info" for="confirmEmergency">
-                    I confirm this is a genuine emergency requiring immediate police attention
-                  </label>
-                </div>
+                <label class="form-label">Upload File</label>
+                <input type="file" class="form-control border-info" id="emergencyPhoto" accept="image/*,video/*,.pdf,.doc,.docx">
+                <small class="text-muted">Photo, video, or document evidence</small>
               </div>
               
               <div id="emergencyComplaintAlert" style="min-height: 20px; border: 1px dashed #ccc; padding: 10px; margin: 10px 0; background: #f8f9fa;">
                 <div class="alert alert-info">
-                  <i class="bi bi-info-circle"></i> Alert Div is working! Submit form to see results here.
+                  <i class="bi bi-info-circle"></i> Fill the fields above and submit to report emergency.
                 </div>
               </div>
               
-              <div class="mb-3">
-                <button type="button" class="btn btn-warning w-100" onclick="testAlert()">
-                  <i class="bi bi-bug"></i> Test Alert Message
-                </button>
-              </div>
-              
               <button type="submit" class="btn btn-info w-100 btn-lg">
-                <i class="bi bi-info-circle"></i> Submit Emergency Complaint
+                <i class="bi bi-info-circle"></i> Submit Emergency Report
               </button>
             </form>
           </div>
@@ -1915,33 +1827,30 @@ window.testAlert = testAlert
 
 async function handleEmergencyComplaintSubmit(form) {
   const emergencyType = document.getElementById('emergencyType')?.value || ''
-  const title = document.getElementById('emergencyTitle')?.value || ''
   const emergencyLocation = document.getElementById('emergencyLocation')?.value || ''
-  const photoLocation = document.getElementById('photoLocation')?.value || ''
   const emergencyPhoto = document.getElementById('emergencyPhoto')?.files[0]
-  const description = document.getElementById('emergencyDescription')?.value || ''
-  const confirmEmergency = document.getElementById('confirmEmergency')?.checked || false
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
   // Debug logging
   console.log('=== Emergency Complaint Submission Debug ===')
   console.log('Form ID:', form.id)
   console.log('Emergency Type:', emergencyType)
-  console.log('Title:', title)
   console.log('Emergency Location:', emergencyLocation)
-  console.log('Photo Location:', photoLocation)
   console.log('Emergency Photo:', emergencyPhoto)
-  console.log('Description:', description)
-  console.log('Confirm Emergency:', confirmEmergency)
   console.log('Alert Div:', alertDiv)
   console.log('Alert Div ID:', alertDiv?.id)
   console.log('Alert Div InnerHTML:', alertDiv?.innerHTML)
 
   try {
-    // Only require confirmation checkbox
-    if (!confirmEmergency) {
-      console.log('Error: Confirmation checkbox not checked')
-      throw new Error('Please confirm this is a genuine emergency')
+    // Validate required fields
+    if (!emergencyType) {
+      console.log('Error: Emergency type not selected')
+      throw new Error('Please select emergency type')
+    }
+
+    if (!emergencyLocation) {
+      console.log('Error: Location not provided')
+      throw new Error('Please provide emergency location')
     }
 
     console.log('Validation passed, preparing submission...')
@@ -1952,23 +1861,15 @@ async function handleEmergencyComplaintSubmit(form) {
       captured_at: new Date().toISOString()
     }
 
-    // Photo location data
-    const photoLocationData = {
-      address: photoLocation,
-      captured_at: new Date().toISOString()
-    }
-
     // Submit to backend with emergency data
     const payload = {
-      title: `[EMERGENCY] ${title}`,
+      title: `[EMERGENCY] ${emergencyType}`,
       category: emergencyType,
       incident_date: new Date().toISOString().split('T')[0],
       emergency_location: emergencyLocationData,
-      photo_location: photoLocationData,
-      description: `EMERGENCY TYPE: ${emergencyType}\nEMERGENCY LOCATION: ${emergencyLocation}\nPHOTO LOCATION: ${photoLocation}\n\n${description}`,
+      description: `EMERGENCY TYPE: ${emergencyType}\nLOCATION: ${emergencyLocation}\nFILE: ${emergencyPhoto?.name || 'No file uploaded'}`,
       emergency_type: emergencyType,
       emergency_location: emergencyLocation,
-      photo_location: photoLocation,
       is_emergency: true
     }
 
@@ -1980,11 +1881,9 @@ async function handleEmergencyComplaintSubmit(form) {
     formData.append('category', payload.category)
     formData.append('incident_date', payload.incident_date)
     formData.append('emergency_location', JSON.stringify(payload.emergency_location))
-    formData.append('photo_location', JSON.stringify(payload.photo_location))
     formData.append('description', payload.description)
     formData.append('emergency_type', payload.emergency_type)
     formData.append('emergency_location', payload.emergency_location)
-    formData.append('photo_location', payload.photoLocation)
     formData.append('is_emergency', payload.is_emergency)
     formData.append('user_id', currentUser?.id || 'anonymous')
     
@@ -2025,18 +1924,12 @@ async function handleEmergencyComplaintSubmit(form) {
 
     console.log('Success! Preparing success message...')
     let successMessage = `<div class="alert alert-success alert-dismissible">
-      <strong><i class="bi bi-check-circle-fill"></i> Emergency Complaint Filed Successfully!</strong><br>
+      <strong><i class="bi bi-check-circle-fill"></i> Emergency Report Filed Successfully!</strong><br>
       <strong>Complaint ID:</strong> ${data.complaint_id}<br>
       <strong>Priority:</strong> HIGH<br>
-      <small>Your emergency complaint has been marked for immediate attention.</small>`
-    
-    if (emergencyLocation) {
-      successMessage += `<br><strong>Emergency Location:</strong> ${emergencyLocation}`
-    }
-    
-    if (photoLocation) {
-      successMessage += `<br><strong>Photo Location:</strong> ${photoLocation}`
-    }
+      <strong>Emergency Type:</strong> ${emergencyType}<br>
+      <strong>Location:</strong> ${emergencyLocation}<br>
+      <small>Your emergency report has been marked for immediate attention.</small>`
     
     if (data.evidence_file) {
       successMessage += `<br><strong>Evidence File:</strong> ${data.evidence_file}`
@@ -2052,7 +1945,7 @@ async function handleEmergencyComplaintSubmit(form) {
       console.log('AlertDiv after:', alertDiv.innerHTML)
     } else {
       console.error('AlertDiv is null or undefined!')
-      // Try to find the alert div by querySelector
+      // Try to find alert div by querySelector
       const fallbackAlert = document.querySelector('#emergencyComplaintAlert')
       console.log('Fallback alert found:', fallbackAlert)
       if (fallbackAlert) {
@@ -2076,16 +1969,6 @@ async function handleEmergencyComplaintSubmit(form) {
       }
     } catch (e) {
       console.warn('Emergency location field reset failed:', e)
-    }
-    
-    try {
-      const photoLocationInput = document.getElementById('photoLocation')
-      if (photoLocationInput) {
-        photoLocationInput.value = ''
-        photoLocationInput.removeAttribute('data-location')
-      }
-    } catch (e) {
-      console.warn('Photo location field reset failed:', e)
     }
     
     setTimeout(() => {
