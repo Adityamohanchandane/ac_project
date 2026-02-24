@@ -2180,12 +2180,24 @@ function updateStats(complaints) {
   const totalEl2 = document.getElementById('totalComplaints2')
   const resolvedEl2 = document.getElementById('resolvedCount2')
 
+  console.log('=== Update Stats Debug ===')
+  console.log('Total complaints:', total)
+  console.log('Resolved:', resolved)
+  console.log('Pending:', pending)
+  console.log('investigating:', investigating)
+  console.log('Total element found:', !!totalEl)
+  console.log('Resolved element found:', !!resolvedEl)
+  console.log('Pending element found:', !!pendingEl)
+  console.log('investigating element found:', !!investigatingEl)
+
   if (totalEl) totalEl.textContent = total
   if (resolvedEl) resolvedEl.textContent = resolved
   if (pendingEl) pendingEl.textContent = pending
   if (investigatingEl) investigatingEl.textContent = investigating
   if (totalEl2) totalEl2.textContent = total
   if (resolvedEl2) resolvedEl2.textContent = resolved
+  
+  console.log('Stats updated successfully!')
 }
 
 function renderUserComplaints(complaints) {
