@@ -10,8 +10,6 @@ let supabase = null
 try {
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  } else {
-    console.warn('Supabase not configured — continuing without Supabase')
   }
 } catch (e) {
   console.error('Failed to initialize Supabase client:', e)
