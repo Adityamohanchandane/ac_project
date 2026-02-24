@@ -729,8 +729,8 @@ function renderFileComplaint() {
               </div>
               <div class="mb-3">
                 <label class="form-label">Upload Evidence (Optional)</label>
-                <input type="file" class="form-control" id="evidence" accept=".pdf,.jpg,.jpeg,.png" help-text="Max 5MB">
-                <small class="text-muted">Accepted: PDF, JPG, PNG (Max 5MB)</small>
+                <input type="file" class="form-control" id="evidenceFile" accept=".pdf,.jpg,.jpeg,.png,.mp4,.gif">
+                <small class="text-muted">Accepted: PDF, JPG, PNG, MP4, GIF (Max 10MB)</small>
               </div>
               <div id="complaintAlert"></div>
               <button type="submit" class="btn btn-primary w-100">Submit Complaint</button>
@@ -1432,19 +1432,6 @@ async function handleComplaintSubmit(form) {
       captured_at: new Date().toISOString()
     }
 
-    let evidencePath = null
-
-    if (evidenceFile) {
-      const fileSize = evidenceFile.size / 1024 / 1024
-      if (fileSize > 5) {
-        throw new Error('File size must be less than 5MB')
-      }
-
-      // For now, just store file info locally (no Supabase)
-      // In production, you'd use proper storage
-      evidencePath = evidenceFile.name
-    }
-
     // Submit to backend with location data
     const payload = {
       title,
@@ -1457,15 +1444,38 @@ async function handleComplaintSubmit(form) {
 
     console.log('Submitting complaint:', payload)
     
-    const res = await fetch('http://localhost:8080/file_complaint.php', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload),
-      mode: 'cors'
-    })
+    // Check if there's a file to upload
+    const evidenceFile = document.getElementById('evidenceFile')?.files[0]
+    
+    let res
+    if (evidenceFile) {
+      // Use FormData for file upload
+      const formData = new FormData()
+      formData.append('evidence', evidenceFile)
+      formData.append('title', title)
+      formData.append('category', category)
+      formData.append('incident_date', incidentDate)
+      formData.append('user_location', userLocation)
+      formData.append('crime_location', crimeLocationData)
+      formData.append('description', description)
+      
+      res = await fetch('http://localhost:8080/file_complaint.php', {
+        method: 'POST',
+        body: formData,
+        mode: 'cors'
+      })
+    } else {
+      // Use JSON for requests without files
+      res = await fetch('http://localhost:8080/file_complaint.php', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        mode: 'cors'
+      })
+    }
 
     console.log('Response status:', res.status)
     console.log('Response headers:', res.headers)
@@ -1485,11 +1495,19 @@ async function handleComplaintSubmit(form) {
       throw new Error(data.message || 'Failed to file complaint')
     }
 
-    alertDiv.innerHTML = `<div class="alert alert-success">
+    let successMessage = `<div class="alert alert-success">
       Complaint filed successfully!<br>
       <strong>Complaint ID:</strong> ${data.complaint_id}<br>
-      <small>Your location has been recorded for verification</small>
-    </div>`
+      <small>Your location has been recorded for verification</small>`
+    
+    if (data.evidence_file) {
+      successMessage += `<br><strong>Evidence File:</strong> ${data.evidence_file}<br>
+      <small>File uploaded successfully</small>`
+    }
+    
+    successMessage += `</div>`
+    
+    alertDiv.innerHTML = successMessage
     form.reset()
     document.getElementById('userLocation').value = ''
     document.getElementById('userLocation').removeAttribute('data-location')
