@@ -1722,7 +1722,17 @@ function renderEmergencyComplaint() {
                 </div>
               </div>
               
-              <div id="emergencyComplaintAlert"></div>
+              <div id="emergencyComplaintAlert" style="min-height: 20px; border: 1px dashed #ccc; padding: 10px; margin: 10px 0; background: #f8f9fa;">
+                <div class="alert alert-info">
+                  <i class="bi bi-info-circle"></i> Alert Div is working! Submit form to see results here.
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <button type="button" class="btn btn-warning w-100" onclick="testAlert()">
+                  <i class="bi bi-bug"></i> Test Alert Message
+                </button>
+              </div>
               
               <button type="submit" class="btn btn-info w-100 btn-lg">
                 <i class="bi bi-info-circle"></i> Submit Emergency Complaint
@@ -1877,6 +1887,31 @@ async function handleComplaintSubmit(form) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }
 }
+
+// Test function for emergency complaint alert
+function testAlert() {
+  const alertDiv = document.getElementById('emergencyComplaintAlert')
+  console.log('=== Test Alert Function ===')
+  console.log('AlertDiv:', alertDiv)
+  console.log('AlertDiv ID:', alertDiv?.id)
+  console.log('AlertDiv InnerHTML before:', alertDiv?.innerHTML)
+  
+  if (alertDiv) {
+    const testMessage = `<div class="alert alert-success alert-dismissible">
+      <strong><i class="bi bi-check-circle-fill"></i> Test Alert Working!</strong><br>
+      <small>This is a test message to verify alert functionality.</small>
+      <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+    </div>`
+    
+    alertDiv.innerHTML = testMessage
+    console.log('AlertDiv InnerHTML after:', alertDiv.innerHTML)
+    console.log('Test alert displayed successfully!')
+  } else {
+    console.error('AlertDiv not found!')
+  }
+}
+
+window.testAlert = testAlert
 
 async function handleEmergencyComplaintSubmit(form) {
   const emergencyType = document.getElementById('emergencyType')?.value || ''
