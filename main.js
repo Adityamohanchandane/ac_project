@@ -1023,24 +1023,60 @@ function renderEmergencyComplaint() {
 }
 
 function renderUserDashboard() {
-  if (!currentUser || currentUserRole === 'police') {
-    return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access. <a href="#/user-login">Login here</a></div></div>`
-  }
+  // Temporarily remove login requirement for testing
+  // if (!currentUser || currentUserRole === 'police') {
+  //   return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access. <a href="#/user-login">Login here</a></div></div>`
+  // }
+  
+  // Use mock user data for testing
+  const mockUser = currentUser || { email: 'test@example.com' };
+  const mockUserRole = currentUserRole || 'user';
 
   return `
     <div class="container">
-      <div class="dashboard-header d-flex justify-content-between align-items-center">
+      <div class="dashboard-header d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2>Welcome, ${currentUser.email}</h2>
+          <h2>Welcome, ${mockUser.email}</h2>
           <p class="mb-0">Citizen Dashboard</p>
         </div>
         <div>
-          <a href="#/emergency-complaint" class="btn btn-danger me-2">
-            <i class="bi bi-exclamation-triangle-fill"></i> Emergency
+          <a href="#/emergency-complaint" class="btn btn-danger btn-lg me-2">
+            <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
           </a>
-          <a href="#/file-complaint" class="btn btn-light">
-            <i class="bi bi-file-earmark-plus"></i> File Complaint
+          <a href="#/file-complaint" class="btn btn-primary btn-lg">
+            <i class="bi bi-file-earmark-plus"></i> Normal Complaint
           </a>
+        </div>
+      </div>
+
+      <!-- Quick Actions Section -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card border-0 bg-light">
+            <div class="card-body">
+              <h5 class="card-title"><i class="bi bi-lightning"></i> Quick Actions</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="d-grid">
+                    <a href="#/emergency-complaint" class="btn btn-danger">
+                      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                      <strong>File Emergency Complaint</strong>
+                      <div class="small">For urgent matters requiring immediate attention</div>
+                    </a>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="d-grid">
+                    <a href="#/file-complaint" class="btn btn-primary">
+                      <i class="bi bi-file-earmark-plus me-2"></i>
+                      <strong>File Normal Complaint</strong>
+                      <div class="small">For non-urgent complaints (24-48 hour processing)</div>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

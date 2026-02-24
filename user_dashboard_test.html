@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - ObservX</title>
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        .quick-action-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .quick-action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .complaint-btn {
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            color: white;
+            display: block;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .complaint-btn:hover {
+            color: white;
+            transform: scale(1.05);
+        }
+        .emergency-btn {
+            background: linear-gradient(135deg, var(--danger) 0%, var(--danger-light) 100%);
+            border: 2px solid var(--danger);
+        }
+        .normal-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border: 2px solid var(--primary);
+        }
+        .stat-box {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .stat-box:hover {
+            transform: translateY(-3px);
+        }
+        .stat-box .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .stat-box .label {
+            color: var(--text-light);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center text-white" href="#">
+                <img src="https://img.freepik.com/premium-vector/eye-logo-vector-design_9999-14585.jpg" alt="ObservX" style="height: 30px; width: auto; margin-right: 8px;">
+                <span>ObservX</span>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link text-white" href="index.html">Home</a>
+                <a class="nav-link text-white" href="complaint_forms.html">Complaint Forms</a>
+                <a class="nav-link text-white" href="diagnostic.html">Diagnostic</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="bi bi-speedometer2"></i> User Dashboard</h1>
+                    <p class="mb-0">Welcome back! Manage your complaints and file new ones.</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex align-items-center justify-content-end">
+                        <img src="https://ui-avatars.com/api/?name=Test+User&background=2563eb&color=fff" 
+                             alt="User Avatar" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                        <div>
+                            <div class="fw-bold">Test User</div>
+                            <small>test@example.com</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 class="mb-3"><i class="bi bi-lightning"></i> Quick Actions</h3>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="quick-action-card">
+                            <a href="#/emergency-complaint" class="complaint-btn emergency-btn">
+                                <div class="mb-3">
+                                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 3rem;"></i>
+                                </div>
+                                <h4><strong>Emergency Complaint</strong></h4>
+                                <p class="mb-0">For urgent matters requiring immediate police attention</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-light text-danger">Priority: Immediate</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="quick-action-card">
+                            <a href="#/file-complaint" class="complaint-btn normal-btn">
+                                <div class="mb-3">
+                                    <i class="bi bi-file-earmark-plus" style="font-size: 3rem;"></i>
+                                </div>
+                                <h4><strong>Normal Complaint</strong></h4>
+                                <p class="mb-0">For non-urgent complaints (24-48 hour processing)</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-light text-primary">Priority: Standard</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <div class="number">12</div>
+                    <div class="label">Total Complaints</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <div class="number">3</div>
+                    <div class="label">Pending</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <div class="number">5</div>
+                    <div class="label">In Progress</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <div class="number">4</div>
+                    <div class="label">Resolved</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Complaints Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Complaints</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">Theft at Market Area</h6>
+                                        <p class="mb-1 text-muted">Wallet stolen while shopping at the local market</p>
+                                        <small class="text-muted">CMP123456 • 2 hours ago</small>
+                                    </div>
+                                    <span class="badge bg-warning">Pending</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">Cyber Fraud - Online Shopping</h6>
+                                        <p class="mb-1 text-muted">Fake website charged money without delivering product</p>
+                                        <small class="text-muted">CMP123455 • 1 day ago</small>
+                                    </div>
+                                    <span class="badge bg-info">In Progress</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">Missing Person Report</h6>
+                                        <p class="mb-1 text-muted">Family member not returning home from work</p>
+                                        <small class="text-muted">CMP123454 • 3 days ago</small>
+                                    </div>
+                                    <span class="badge bg-success">Resolved</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="#/my-complaints" class="btn btn-outline-primary">View All Complaints</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-info">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="card-title text-info"><i class="bi bi-info-circle"></i> Need Help?</h5>
+                                <p class="card-text">If you have any questions about filing complaints or need assistance, our support team is here to help.</p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-info me-2">Contact Support</button>
+                                <button class="btn btn-outline-info">View FAQ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="bootstrap.bundle.min.js"></script>
+    <script>
+        // Add click handlers for complaint buttons
+        document.querySelectorAll('.complaint-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const href = btn.getAttribute('href');
+                
+                // Show loading state
+                btn.innerHTML = `
+                    <div class="spinner-border spinner-border-sm mb-3" role="status"></div>
+                    <h4>Loading...</h4>
+                    <p class="mb-0">Please wait while we redirect you...</p>
+                `;
+                
+                // Redirect after a short delay
+                setTimeout(() => {
+                    window.location.href = 'complaint_forms.html' + href;
+                }, 1500);
+            });
+        });
+
+        // Add hover effects to stat boxes
+        document.querySelectorAll('.stat-box').forEach(box => {
+            box.addEventListener('mouseenter', () => {
+                box.style.transform = 'translateY(-5px) scale(1.02)';
+            });
+            box.addEventListener('mouseleave', () => {
+                box.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        console.log('User dashboard loaded successfully');
+    </script>
+</body>
+</html>
