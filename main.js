@@ -19,6 +19,40 @@ try {
   supabase = null
 }
 
+// Global variable to control complaint forms visibility
+let showComplaintForms = true
+
+// Function to toggle complaint forms visibility
+function toggleComplaintForms() {
+  showComplaintForms = !showComplaintForms
+  
+  // Update routes based on toggle state
+  if (showComplaintForms) {
+    pages['file-complaint'] = renderFileComplaint
+    pages['emergency-complaint'] = renderEmergencyComplaint
+  } else {
+    pages['file-complaint'] = () => '<div class="container mt-5"><div class="alert alert-warning">Complaint forms are currently disabled.</div></div>'
+    pages['emergency-complaint'] = () => '<div class="container mt-5"><div class="alert alert-warning">Emergency complaint forms are currently disabled.</div></div>'
+  }
+  
+  // Reload current page if on complaint form
+  const currentRoute = location.hash.slice(2) || 'home'
+  if (currentRoute === 'file-complaint' || currentRoute === 'emergency-complaint') {
+    loadPage(currentRoute)
+  }
+  
+  // Update dashboard buttons
+  if (currentUser || currentUserRole === 'user') {
+    const dashboardContent = renderUserDashboard()
+    const content = document.getElementById('content')
+    if (content && currentRoute === 'user-dashboard') {
+      content.innerHTML = dashboardContent
+    }
+  }
+  
+  return showComplaintForms
+}
+
 // Global state
 let currentUser = null
 let currentUserRole = null
@@ -821,6 +855,9 @@ function renderUserDashboard() {
           <p class="mb-0">Citizen Dashboard</p>
         </div>
         <div>
+          <button class="btn btn-warning btn-lg me-2" onclick="toggleComplaintForms()">
+            <i class="bi bi-toggle2-${showComplaintForms ? 'on' : 'off'}"></i> ${showComplaintForms ? 'Disable' : 'Enable'} Complaints
+          </button>
           <a href="#/emergency-complaint" class="btn btn-danger btn-lg me-2">
             <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
           </a>
