@@ -823,7 +823,7 @@ async function loadUserComplaints() {
   if (!container) return
   
   try {
-    const res = await fetch('http://localhost/adii/get_complaints.php', {
+    const res = await fetch('http://localhost:8080/get_complaints.php', {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
@@ -1434,7 +1434,7 @@ async function handleComplaintSubmit(form) {
 
     console.log('Submitting complaint:', payload)
     
-    const res = await fetch('http://localhost/adii/file_complaint.php', {
+    const res = await fetch('http://localhost:8080/file_complaint.php', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
