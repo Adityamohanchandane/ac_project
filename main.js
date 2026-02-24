@@ -1614,13 +1614,23 @@ function renderEmergencyComplaint() {
                     <label class="form-label">Emergency Type</label>
                     <select class="form-select border-info" id="emergencyType">
                       <option value="">Select emergency type (optional)</option>
-                      <option value="life-threatening">Life Threatening</option>
+                      <option value="life-threatening">Life Threatening Situation</option>
                       <option value="crime-in-progress">Crime in Progress</option>
-                      <option value="accident">Serious Accident</option>
-                      <option value="fire">Fire Emergency</option>
+                      <option value="serious-accident">Serious Accident</option>
+                      <option value="fire-emergency">Fire Emergency</option>
                       <option value="medical-emergency">Medical Emergency</option>
-                      <option value="missing-child">Missing Child</option>
+                      <option value="missing-person">Missing Person</option>
+                      <option value="child-abuse">Child Abuse/Neglect</option>
                       <option value="domestic-violence">Domestic Violence</option>
+                      <option value="sexual-assault">Sexual Assault</option>
+                      <option value="kidnapping">Kidnapping/Abduction</option>
+                      <option value="terror-threat">Terrorist Threat</option>
+                      <option value="public-disturbance">Public Disturbance</option>
+                      <option value="fraud-scams">Fraud/Scams</option>
+                      <option value="cyber-emergency">Cyber Security Emergency</option>
+                      <option value="natural-disaster">Natural Disaster</option>
+                      <option value="animal-attack">Animal Attack</option>
+                      <option value="suicide-attempt">Suicide Attempt</option>
                       <option value="other-emergency">Other Emergency</option>
                     </select>
                   </div>
@@ -1657,14 +1667,14 @@ function renderEmergencyComplaint() {
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label class="form-label">Photo Location</label>
+                    <label class="form-label">Photo Location <span class="text-info">*</span></label>
                     <div class="input-group">
-                      <input type="text" class="form-control border-info" id="photoLocation" placeholder="Where photo was taken (optional)">
+                      <input type="text" class="form-control border-info" id="photoLocation" placeholder="Where photo was taken (minimum 4-5 words)" required>
                       <button class="btn btn-info" type="button" id="capturePhotoLocation">
                         <i class="bi bi-camera"></i> Capture
                       </button>
                     </div>
-                    <small class="text-muted">Location where the photo/evidence was captured (optional)</small>
+                    <small class="text-info">Location where the photo/evidence was captured (minimum 4-5 words)</small>
                   </div>
                 </div>
                 
@@ -1876,9 +1886,14 @@ async function handleEmergencyComplaintSubmit(form) {
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
   try {
-    // Only require confirmation checkbox
+    // Only require confirmation checkbox and photo location
     if (!confirmEmergency) {
       throw new Error('Please confirm this is a genuine emergency')
+    }
+
+    // Validate photo location (minimum 4-5 words)
+    if (!photoLocation || photoLocation.trim().split(/\s+/).length < 4) {
+      throw new Error('Photo location must contain at least 4-5 words')
     }
 
     // Photo location data
