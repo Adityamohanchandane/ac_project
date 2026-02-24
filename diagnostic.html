@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic - ObservX</title>
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1><i class="bi bi-activity"></i> Diagnostic Tool</h1>
+        <p class="text-muted">Check what's working and what's not</p>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-check-circle"></i> Working Components</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul id="working-list" class="list-unstyled">
+                            <li><i class="bi bi-hourglass"></i> Checking...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-x-circle"></i> Issues Found</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul id="issues-list" class="list-unstyled">
+                            <li><i class="bi bi-hourglass"></i> Checking...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-gear"></i> Manual Test Links</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Test Pages:</h6>
+                            <ul>
+                                <li><a href="simple_complaint_test.html" target="_blank">Simple Complaint Test</a></li>
+                                <li><a href="debug.html" target="_blank">Debug Page</a></li>
+                                <li><a href="routes_test.html" target="_blank">Routes Test</a></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Main App:</h6>
+                            <ul>
+                                <li><a href="index.html" target="_blank">Main Application</a></li>
+                                <li><a href="index.html#/file-complaint" target="_blank">Normal Complaint</a></li>
+                                <li><a href="index.html#/emergency-complaint" target="_blank">Emergency Complaint</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-terminal"></i> Console Output</h5>
+                </div>
+                <div class="card-body">
+                    <pre id="console-output">Loading diagnostic information...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="bootstrap.bundle.min.js"></script>
+    <script>
+        const working = [];
+        const issues = [];
+        const consoleOutput = [];
+        
+        function log(message) {
+            consoleOutput.push(message);
+            document.getElementById('console-output').textContent = consoleOutput.join('\n');
+        }
+        
+        function addWorking(item) {
+            working.push(item);
+            updateLists();
+        }
+        
+        function addIssue(item) {
+            issues.push(item);
+            updateLists();
+        }
+        
+        function updateLists() {
+            document.getElementById('working-list').innerHTML = working.map(item => 
+                `<li><i class="bi bi-check-circle text-success"></i> ${item}</li>`
+            ).join('');
+            
+            document.getElementById('issues-list').innerHTML = issues.map(item => 
+                `<li><i class="bi bi-x-circle text-danger"></i> ${item}</li>`
+            ).join('');
+        }
+        
+        // Run diagnostics
+        window.addEventListener('load', () => {
+            log('Starting diagnostic...');
+            
+            // Check Bootstrap
+            if (typeof bootstrap !== 'undefined') {
+                addWorking('Bootstrap CSS loaded');
+            } else {
+                addIssue('Bootstrap CSS not loaded');
+            }
+            
+            if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                addWorking('Bootstrap JS loaded');
+            } else {
+                addIssue('Bootstrap JS not loaded');
+            }
+            
+            // Check Bootstrap Icons
+            const testIcon = document.createElement('i');
+            testIcon.className = 'bi bi-house';
+            document.body.appendChild(testIcon);
+            const styles = window.getComputedStyle(testIcon);
+            if (styles.fontFamily.includes('bootstrap-icons')) {
+                addWorking('Bootstrap Icons loaded');
+            } else {
+                addIssue('Bootstrap Icons not loaded');
+            }
+            document.body.removeChild(testIcon);
+            
+            // Check Custom CSS
+            const testElement = document.createElement('div');
+            testElement.className = 'form-section';
+            document.body.appendChild(testElement);
+            const customStyles = window.getComputedStyle(testElement);
+            if (customStyles.padding || customStyles.margin) {
+                addWorking('Custom CSS loaded');
+            } else {
+                addIssue('Custom CSS not loaded');
+            }
+            document.body.removeChild(testElement);
+            
+            // Check Geolocation
+            if (navigator.geolocation) {
+                addWorking('Geolocation API available');
+            } else {
+                addIssue('Geolocation API not available');
+            }
+            
+            // Check Backend Connection
+            fetch('http://localhost:8080/check_auth.php')
+                .then(response => {
+                    if (response.ok) {
+                        addWorking('Backend connection successful');
+                        log('Backend: HTTP 200 OK');
+                    } else {
+                        addIssue('Backend connection failed');
+                        log(`Backend: HTTP ${response.status}`);
+                    }
+                })
+                .catch(error => {
+                    addIssue('Backend connection error');
+                    log(`Backend Error: ${error.message}`);
+                });
+            
+            // Check Frontend Server
+            fetch('http://localhost:5173')
+                .then(response => {
+                    if (response.ok) {
+                        addWorking('Frontend server running');
+                        log('Frontend: HTTP 200 OK');
+                    } else {
+                        addIssue('Frontend server not responding');
+                        log(`Frontend: HTTP ${response.status}`);
+                    }
+                })
+                .catch(error => {
+                    addIssue('Frontend server error');
+                    log(`Frontend Error: ${error.message}`);
+                });
+            
+            // Check Local Storage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                addWorking('Local Storage working');
+            } catch (error) {
+                addIssue('Local Storage not working');
+            }
+            
+            // Check Session Storage
+            try {
+                sessionStorage.setItem('test', 'test');
+                sessionStorage.removeItem('test');
+                addWorking('Session Storage working');
+            } catch (error) {
+                addIssue('Session Storage not working');
+            }
+            
+            log('Diagnostic complete');
+            log(`Working: ${working.length}`);
+            log(`Issues: ${issues.length}`);
+        });
+    </script>
+</body>
+</html>
