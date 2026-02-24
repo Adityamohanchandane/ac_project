@@ -855,9 +855,6 @@ function renderUserDashboard() {
           <p class="mb-0">Citizen Dashboard</p>
         </div>
         <div>
-          <button class="btn btn-warning btn-lg me-2" onclick="toggleComplaintForms()">
-            <i class="bi bi-toggle2-${showComplaintForms ? 'on' : 'off'}"></i> ${showComplaintForms ? 'Disable' : 'Enable'} Complaints
-          </button>
           <a href="#/emergency-complaint" class="btn btn-danger btn-lg me-2">
             <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
           </a>
