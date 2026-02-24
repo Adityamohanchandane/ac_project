@@ -1608,104 +1608,40 @@ function renderEmergencyComplaint() {
             <p class="text-muted">This will be prioritized for immediate action</p>
             
             <form id="emergencyComplaintForm">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label">Emergency Type</label>
-                    <select class="form-select border-info" id="emergencyType">
-                      <option value="">Select emergency type (optional)</option>
-                      <option value="life-threatening">Life Threatening Situation</option>
-                      <option value="crime-in-progress">Crime in Progress</option>
-                      <option value="serious-accident">Serious Accident</option>
-                      <option value="fire-emergency">Fire Emergency</option>
-                      <option value="medical-emergency">Medical Emergency</option>
-                      <option value="missing-person">Missing Person</option>
-                      <option value="child-abuse">Child Abuse/Neglect</option>
-                      <option value="domestic-violence">Domestic Violence</option>
-                      <option value="sexual-assault">Sexual Assault</option>
-                      <option value="kidnapping">Kidnapping/Abduction</option>
-                      <option value="terror-threat">Terrorist Threat</option>
-                      <option value="public-disturbance">Public Disturbance</option>
-                      <option value="fraud-scams">Fraud/Scams</option>
-                      <option value="cyber-emergency">Cyber Security Emergency</option>
-                      <option value="natural-disaster">Natural Disaster</option>
-                      <option value="animal-attack">Animal Attack</option>
-                      <option value="suicide-attempt">Suicide Attempt</option>
-                      <option value="other-emergency">Other Emergency</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label">Urgency Level</label>
-                    <div class="btn-group w-100" role="group">
-                      <input type="radio" class="btn-check" name="urgency" id="urgency-critical" value="critical">
-                      <label class="btn btn-outline-info" for="urgency-critical">
-                        <i class="bi bi-exclamation-triangle"></i> Critical
-                      </label>
-                      
-                      <input type="radio" class="btn-check" name="urgency" id="urgency-high" value="high">
-                      <label class="btn btn-outline-warning" for="urgency-high">
-                        <i class="bi bi-exclamation-circle"></i> High
-                      </label>
-                      
-                      <input type="radio" class="btn-check" name="urgency" id="urgency-medium" value="medium">
-                      <label class="btn btn-outline-secondary" for="urgency-medium">
-                        <i class="bi bi-info-circle"></i> Medium
-                      </label>
-                    </div>
-                  </div>
-                </div>
+              <div class="mb-3">
+                <label class="form-label">Emergency Type</label>
+                <select class="form-select border-info" id="emergencyType">
+                  <option value="">Select emergency type</option>
+                  <option value="life-threatening">Life Threatening</option>
+                  <option value="crime-in-progress">Crime in Progress</option>
+                  <option value="serious-accident">Serious Accident</option>
+                  <option value="fire-emergency">Fire Emergency</option>
+                  <option value="medical-emergency">Medical Emergency</option>
+                  <option value="missing-person">Missing Person</option>
+                  <option value="domestic-violence">Domestic Violence</option>
+                  <option value="other-emergency">Other Emergency</option>
+                </select>
               </div>
               
               <div class="mb-3">
                 <label class="form-label">Emergency Title</label>
-                <input type="text" class="form-control border-info" id="emergencyTitle" placeholder="Brief description of emergency (optional)">
+                <input type="text" class="form-control border-info" id="emergencyTitle" placeholder="Brief description of emergency">
               </div>
               
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label">Photo Location <span class="text-info">*</span></label>
-                    <div class="input-group">
-                      <input type="text" class="form-control border-info" id="photoLocation" placeholder="Where photo was taken (minimum 4-5 words)" required>
-                      <button class="btn btn-info" type="button" id="capturePhotoLocation">
-                        <i class="bi bi-camera"></i> Capture
-                      </button>
-                    </div>
-                    <small class="text-info">Location where the photo/evidence was captured (minimum 4-5 words)</small>
-                  </div>
+              <div class="mb-3">
+                <label class="form-label">Photo Location</label>
+                <div class="input-group">
+                  <input type="text" class="form-control border-info" id="photoLocation" placeholder="Where photo was taken">
+                  <button class="btn btn-info" type="button" id="capturePhotoLocation">
+                    <i class="bi bi-camera"></i> Capture
+                  </button>
                 </div>
-                
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label">Upload Photo</label>
-                    <input type="file" class="form-control border-info" id="emergencyPhoto" accept="image/*">
-                    <small class="text-muted">Photo evidence (optional)</small>
-                  </div>
-                </div>
+                <small class="text-muted">Location where the photo/evidence was captured</small>
               </div>
               
               <div class="mb-3">
                 <label class="form-label">Emergency Description</label>
-                <textarea class="form-control border-info" id="emergencyDescription" rows="3" placeholder="Describe the emergency situation in detail (optional)"></textarea>
-              </div>
-              
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label">Contact Number</label>
-                    <input type="tel" class="form-control border-info" id="emergencyContact" placeholder="Your mobile number (optional)">
-                  </div>
-                </div>
-                
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label">Your Name</label>
-                    <input type="text" class="form-control border-info" id="emergencyName" placeholder="Your full name (optional)">
-                  </div>
-                </div>
+                <textarea class="form-control border-info" id="emergencyDescription" rows="3" placeholder="Describe the emergency situation in detail"></textarea>
               </div>
               
               <div class="mb-3">
@@ -1886,14 +1822,9 @@ async function handleEmergencyComplaintSubmit(form) {
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
   try {
-    // Only require confirmation checkbox and photo location
+    // Only require confirmation checkbox
     if (!confirmEmergency) {
       throw new Error('Please confirm this is a genuine emergency')
-    }
-
-    // Validate photo location (minimum 4-5 words)
-    if (!photoLocation || photoLocation.trim().split(/\s+/).length < 4) {
-      throw new Error('Photo location must contain at least 4-5 words')
     }
 
     // Photo location data
