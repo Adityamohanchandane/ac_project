@@ -177,7 +177,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function checkAuth() {
   if (!supabase) {
-    return false
+    // Use PHP session check instead of Supabase
+    try {
+      const res = await fetch('http://localhost:8080/check_auth.php', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        },
+        mode: 'cors'
+      })
+      
+      const data = await res.json()
+      
+      if (data.authenticated && data.user) {
+        currentUser = data.user
+        currentUserRole = data.user.role || 'user'
+        updateAuthMenu()
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.log('Auth check error:', error)
+      return false
+    }
   }
 
   try {
