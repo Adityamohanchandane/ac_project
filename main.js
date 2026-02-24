@@ -1,4 +1,7 @@
-import './style.css'
+import './style.css?v=2.0'
+// Version: 2.0 - Force Refresh Update
+console.log('🔄 ObservX v2.0 - Loading with force refresh...');
+
 // Ensure Supabase client is available in the browser environment.
 // Using the ESM bundle served by jsDelivr so `createClient` is defined.
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'

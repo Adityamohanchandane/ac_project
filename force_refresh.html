@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Refresh - ObservX</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 50px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .refresh-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        .btn-primary {
+            background: #007bff;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #000;
+        }
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .steps {
+            text-align: left;
+            margin: 20px 0;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="refresh-container">
+        <h1>🔄 Force Refresh</h1>
+        <p><strong>अगर आपको changes नहीं दिख रहे, तो ये steps follow करें:</strong></p>
+        
+        <div class="steps">
+            <div class="step">
+                <strong>Step 1:</strong> Browser Cache Clear करें
+            </div>
+            <div class="step">
+                <strong>Step 2:</strong> Hard Refresh करें (Ctrl + F5)
+            </div>
+            <div class="step">
+                <strong>Step 3:</strong> Incognito Mode में test करें
+            </div>
+            <div class="step">
+                <strong>Step 4:</strong> नीचे दिए गए links use करें
+            </div>
+        </div>
+        
+        <a href="http://localhost:5173" class="btn btn-primary" onclick="clearCache()">
+            🏠 Main App (Force Refresh)
+        </a>
+        
+        <a href="http://localhost:5173/#/police-login" class="btn btn-warning" onclick="clearCache()">
+            🛡️ Police Login (Force Refresh)
+        </a>
+        
+        <a href="http://localhost:5173/#/user-login" class="btn" onclick="clearCache()">
+            👤 User Login (Force Refresh)
+        </a>
+        
+        <div style="margin-top: 30px; padding: 20px; background: rgba(255, 0, 0, 0.2); border-radius: 10px;">
+            <p><strong>🔧 Test Credentials:</strong></p>
+            <p><strong>Police:</strong> police@observx.com / police123</p>
+            <p><strong>User:</strong> user@observx.com / user123</p>
+        </div>
+    </div>
+
+    <script>
+        function clearCache() {
+            // Clear browser cache
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    names.forEach(function(name) {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            // Force reload
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 100);
+        }
+        
+        // Auto-refresh after 5 seconds
+        setTimeout(() => {
+            window.location.href = 'http://localhost:5173/#/police-login';
+        }, 5000);
+    </script>
+</body>
+</html>
