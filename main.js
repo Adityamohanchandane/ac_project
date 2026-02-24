@@ -867,37 +867,6 @@ function renderUserDashboard() {
         </div>
       </div>
 
-      <!-- Quick Actions Section -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card border-0 bg-light">
-            <div class="card-body">
-              <h5 class="card-title"><i class="bi bi-lightning"></i> Quick Actions</h5>
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <div class="d-grid">
-                    <a href="#/emergency-complaint" class="btn btn-danger">
-                      <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                      <strong>File Emergency Complaint</strong>
-                      <div class="small">For urgent matters requiring immediate attention</div>
-                    </a>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="d-grid">
-                    <a href="#/file-complaint" class="btn btn-primary">
-                      <i class="bi bi-file-earmark-plus me-2"></i>
-                      <strong>File Normal Complaint</strong>
-                      <div class="small">For non-urgent complaints (24-48 hour processing)</div>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="row g-3 mb-4">
         <div class="col-md-6">
           <div class="stat-box">
