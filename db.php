@@ -12,15 +12,21 @@ ini_set('display_errors', 1);
 
 // Function to send clean JSON response
 
-function send_json_response($success, $message) {
+if (!function_exists('send_json_response')) {
 
-    ob_clean();
+    function send_json_response($success, $message) {
 
-    header('Content-Type: application/json');
+        ob_clean();
 
-    echo json_encode(['success' => $success, 'message' => $message]);
+        header('Content-Type: application/json');
 
-    exit;
+        header("Access-Control-Allow-Origin: *");
+
+        echo json_encode(['success' => $success, 'message' => $message]);
+
+        exit;
+
+    }
 
 }
 

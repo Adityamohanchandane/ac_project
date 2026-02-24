@@ -1,22 +1,12 @@
 [
-  {
-    "id": "test_user_001",
-    "email": "test@example.com",
-    "password": "$2y$10$YJvMUaKO2eFQjnBqCsEY8.exJGZ2pAEBKgHMa0eqJ7dzqGxjC5pje",
-    "role": "user",
-    "full_name": "Test User",
-    "mobile": "9876543210",
-    "address": "123 Main Street, City",
-    "created_at": "2026-02-08T00:00:00+00:00"
-  },
-  {
-    "id": "admin_001",
-    "email": "admin@example.com",
-    "password": "$2y$10$YJvMUaKO2eFQjnBqCsEY8.exJGZ2pAEBKgHMa0eqJ7dzqGxjC5pje",
-    "role": "admin",
-    "full_name": "Admin User",
-    "mobile": "9876543211",
-    "address": "456 Admin Street, City",
-    "created_at": "2026-02-08T00:00:00+00:00"
-  }
+	{
+		"id": "e0b75181-160a-4dd6-9615-585d671d61e6",
+		"email": "rbhoyar12@gmail.com",
+		"password": "9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c",
+		"role": "user",
+		"full_name": "",
+		"mobile": "",
+		"address": "",
+		"created_at": "2026-02-23T11:07:46.118Z"
+	}
 ]

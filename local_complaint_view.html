@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Complaint Details - Local Version</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        .card-header {
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        }
+        .card-body {
+            padding: 2rem;
+        }
+        .badge {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        .btn-print {
+            border-radius: 8px;
+        }
+        h2 {
+            color: white;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .detail-row {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #6c757d;
+        }
+        .detail-value {
+            font-size: 1.1rem;
+        }
+        .status-badge {
+            font-size: 1rem;
+            padding: 0.75rem 1.25rem;
+        }
+        .back-button {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        .back-button:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e9ecef;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2><i class="bi bi-file-text"></i> Complaint Details</h2>
+        
+        <div class="text-center mb-4">
+            <a href="local_complaints.html" class="back-button">
+                <i class="bi bi-arrow-left"></i> Back to My Complaints
+            </a>
+        </div>
+        
+        <div id="complaintContainer">
+            <div class="text-center text-white">
+                <div class="spinner-border" role="status"></div>
+                <p class="mt-3">Loading complaint details...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample complaint data
+        const sampleComplaints = {
+            "CMP699C8B7966216": {
+                id: 1,
+                complaint_id: "CMP699C8B7966216",
+                title: "Mobile Phone Theft",
+                category: "Theft",
+                description: "My mobile phone was stolen from the bus stop near Shivaji Chowk. The incident occurred around 6 PM when I was waiting for the bus. The phone was a Samsung Galaxy S21 with black color and worth approximately ₹45,000. I have the original purchase receipt and box. The thief was a young male wearing a blue shirt who snatched the phone and ran away.",
+                status: "pending",
+                created_at: "2024-02-23 18:16:41",
+                updated_at: "2024-02-23 22:46:41",
+                location: "Shivaji Chowk Bus Stop",
+                evidence: "Purchase receipt available",
+                priority: "medium"
+            },
+            "CMP699C8B16D2F53": {
+                id: 2,
+                complaint_id: "CMP699C8B16D2F53",
+                title: "Bank Account Fraud",
+                category: "Fraud",
+                description: "Unauthorized transactions detected in my bank account. Multiple withdrawals made without my knowledge totaling ₹25,000. The transactions occurred from different ATMs across the city. I have reported this to the bank and they are investigating. I suspect my card details were compromised during an online purchase.",
+                status: "under_investigation",
+                created_at: "2024-02-23 18:15:02",
+                updated_at: "2024-02-23 22:45:02",
+                location: "Multiple ATM locations",
+                evidence: "Bank statements available",
+                priority: "high"
+            },
+            "CMP699C8B6ADC040": {
+                id: 3,
+                complaint_id: "CMP699C8B6ADC040",
+                title: "Cyber Bullying",
+                category: "cyber-crime",
+                description: "Receiving threatening messages and harassment on social media platforms. The perpetrator has been sending abusive messages and threats for the past 2 weeks. I have screenshots of all messages and have blocked the accounts, but they keep creating new profiles.",
+                status: "resolved",
+                created_at: "2024-02-23 18:16:26",
+                updated_at: "2024-02-23 22:46:26",
+                location: "Online - Social Media",
+                evidence: "Screenshots available",
+                priority: "high"
+            }
+        };
+
+        async function loadComplaint() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const complaintId = urlParams.get('id');
+            
+            if (!complaintId) {
+                showError('No complaint ID provided');
+                return;
+            }
+
+            let complaint = null;
+
+            try {
+                // Try to load from API first
+                const response = await fetch(`http://localhost/adii/get_complaint.php?id=${complaintId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    complaint = data.complaint;
+                    console.log('Loaded from API:', complaint);
+                } else {
+                    throw new Error('API failed');
+                }
+            } catch (error) {
+                console.log('Using sample data:', error.message);
+                // Fallback to sample data
+                complaint = sampleComplaints[complaintId];
+            }
+
+            if (complaint) {
+                displayComplaint(complaint);
+            } else {
+                showError('Complaint not found');
+            }
+        }
+
+        function displayComplaint(complaint) {
+            const container = document.getElementById('complaintContainer');
+            
+            const html = `
+                <div class="card">
+                    <div class="card-header text-white">
+                        <h3 class="mb-0"><i class="bi bi-file-text"></i> ${complaint.title}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="detail-row">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <span class="detail-label">Complaint ID:</span>
+                                    <span class="detail-value">${complaint.complaint_id}</span>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <span class="detail-label">Status:</span>
+                                    <span class="badge status-badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <span class="detail-label">Category:</span>
+                                    <span class="detail-value">${complaint.category}</span>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <span class="detail-label">Priority:</span>
+                                    <span class="badge bg-${getPriorityColor(complaint.priority)}">${complaint.priority || 'medium'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <span class="detail-label">Filed Date:</span>
+                                    <span class="detail-value">${new Date(complaint.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <span class="detail-label">Last Updated:</span>
+                                    <span class="detail-value">${new Date(complaint.updated_at).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${complaint.location ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Location:</span>
+                            <span class="detail-value"><i class="bi bi-geo-alt"></i> ${complaint.location}</span>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="detail-row">
+                            <span class="detail-label">Description:</span>
+                            <div class="detail-value mt-2">
+                                <p>${complaint.description}</p>
+                            </div>
+                        </div>
+
+                        ${complaint.evidence ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Evidence:</span>
+                            <span class="detail-value"><i class="bi bi-paperclip"></i> ${complaint.evidence}</span>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-primary btn-print" onclick="printComplaint()">
+                                <i class="bi bi-printer"></i> Print Details
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="downloadPDF()">
+                                <i class="bi bi-download"></i> Download PDF
+                            </button>
+                            <button class="btn btn-outline-info" onclick="shareComplaint()">
+                                <i class="bi bi-share"></i> Share
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function getStatusColor(status) {
+            switch (status.toLowerCase()) {
+                case 'pending': return 'warning';
+                case 'under_investigation': return 'info';
+                case 'resolved': return 'success';
+                case 'closed': return 'secondary';
+                default: return 'secondary';
+            }
+        }
+
+        function getPriorityColor(priority) {
+            switch (priority?.toLowerCase()) {
+                case 'high': return 'danger';
+                case 'medium': return 'warning';
+                case 'low': return 'info';
+                default: return 'secondary';
+            }
+        }
+
+        function showError(message) {
+            const container = document.getElementById('complaintContainer');
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #dc3545;"></i>
+                        <h4 class="mt-3">Complaint Not Found</h4>
+                        <p>${message}</p>
+                        <a href="local_complaints.html" class="btn btn-primary mt-3">
+                            <i class="bi bi-arrow-left"></i> Back to Complaints
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        function printComplaint() {
+            const complaint = getCurrentComplaint();
+            
+            if (!complaint) {
+                alert('Complaint data not available');
+                return;
+            }
+
+            // Create printable content
+            const printContent = createPrintContent(complaint);
+            
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Complaint ${complaint.complaint_id}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                        .section { margin-bottom: 20px; }
+                        .label { font-weight: bold; color: #333; }
+                        .value { margin-bottom: 10px; }
+                        .status { padding: 5px 10px; border-radius: 4px; color: white; }
+                        .pending { background: #ffc107; }
+                        .under_investigation { background: #17a2b8; }
+                        .resolved { background: #28a745; }
+                        .closed { background: #6c757d; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    ${printContent}
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            
+            // Wait for content to load, then print
+            setTimeout(() => {
+                printWindow.print();
+                // Optional: Close after printing
+                setTimeout(() => {
+                    printWindow.close();
+                }, 1000);
+            }, 500);
+        }
+
+        function downloadPDF() {
+            const complaintId = new URLSearchParams(window.location.search).get('id');
+            const complaint = getCurrentComplaint();
+            
+            if (!complaint) {
+                alert('Complaint data not available');
+                return;
+            }
+
+            // Create printable content
+            const printContent = createPrintContent(complaint);
+            
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Complaint ${complaint.complaint_id}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                        .section { margin-bottom: 20px; }
+                        .label { font-weight: bold; color: #333; }
+                        .value { margin-bottom: 10px; }
+                        .status { padding: 5px 10px; border-radius: 4px; color: white; }
+                        .pending { background: #ffc107; }
+                        .under_investigation { background: #17a2b8; }
+                        .resolved { background: #28a745; }
+                        .closed { background: #6c757d; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    ${printContent}
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            
+            // Wait for content to load, then print
+            setTimeout(() => {
+                printWindow.print();
+                // Optional: Close after printing
+                setTimeout(() => {
+                    printWindow.close();
+                }, 1000);
+            }, 500);
+        }
+
+        function shareComplaint() {
+            const complaintId = new URLSearchParams(window.location.search).get('id');
+            const complaint = getCurrentComplaint();
+            
+            if (!complaint) {
+                alert('Complaint data not available');
+                return;
+            }
+
+            // Create share data
+            const shareData = {
+                title: `Complaint: ${complaint.title}`,
+                text: `Complaint ID: ${complaint.complaint_id}\nCategory: ${complaint.category}\nStatus: ${complaint.status}\n\n${complaint.description}`,
+                url: window.location.href
+            };
+
+            // Try native share API first
+            if (navigator.share) {
+                navigator.share(shareData)
+                    .then(() => console.log('Shared successfully'))
+                    .catch((error) => console.log('Error sharing:', error));
+            } else {
+                // Fallback: Copy to clipboard
+                const shareText = `${shareData.title}\n\n${shareData.text}\n\nView details: ${shareData.url}`;
+                
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        showShareSuccess('Complaint details copied to clipboard!');
+                    });
+                } else {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = shareText;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showShareSuccess('Complaint details copied to clipboard!');
+                }
+            }
+        }
+
+        function getCurrentComplaint() {
+            const complaintId = new URLSearchParams(window.location.search).get('id');
+            
+            // Try to get from API first, fallback to sample data
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            
+            // Return sample data for now
+            const sampleComplaints = {
+                "CMP699C8B7966216": {
+                    id: 1,
+                    complaint_id: "CMP699C8B7966216",
+                    title: "Mobile Phone Theft",
+                    category: "Theft",
+                    description: "My mobile phone was stolen from the bus stop near Shivaji Chowk. The incident occurred around 6 PM when I was waiting for the bus. The phone was a Samsung Galaxy S21 with black color and worth approximately ₹45,000. I have the original purchase receipt and box. The thief was a young male wearing a blue shirt who snatched the phone and ran away.",
+                    status: "pending",
+                    created_at: "2024-02-23 18:16:41",
+                    updated_at: "2024-02-23 22:46:41",
+                    location: "Shivaji Chowk Bus Stop",
+                    evidence: "Purchase receipt available",
+                    priority: "medium"
+                },
+                "CMP699C8B16D2F53": {
+                    id: 2,
+                    complaint_id: "CMP699C8B16D2F53",
+                    title: "Bank Account Fraud",
+                    category: "Fraud",
+                    description: "Unauthorized transactions detected in my bank account. Multiple withdrawals made without my knowledge totaling ₹25,000. The transactions occurred from different ATMs across the city. I have reported this to the bank and they are investigating. I suspect my card details were compromised during an online purchase.",
+                    status: "under_investigation",
+                    created_at: "2024-02-23 18:15:02",
+                    updated_at: "2024-02-23 22:45:02",
+                    location: "Multiple ATM locations",
+                    evidence: "Bank statements available",
+                    priority: "high"
+                },
+                "CMP699C8B6ADC040": {
+                    id: 3,
+                    complaint_id: "CMP699C8B6ADC040",
+                    title: "Cyber Bullying",
+                    category: "cyber-crime",
+                    description: "Receiving threatening messages and harassment on social media platforms. The perpetrator has been sending abusive messages and threats for the past 2 weeks. I have screenshots of all messages and have blocked the accounts, but they keep creating new profiles.",
+                    status: "resolved",
+                    created_at: "2024-02-23 18:16:26",
+                    updated_at: "2024-02-23 22:46:26",
+                    location: "Online - Social Media",
+                    evidence: "Screenshots available",
+                    priority: "high"
+                }
+            };
+            
+            return sampleComplaints[id];
+        }
+
+        function createPrintContent(complaint) {
+            return `
+                <div class="header">
+                    <h1>Complaint Details</h1>
+                    <p>Generated on: ${new Date().toLocaleDateString()}</p>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Complaint ID:</div>
+                    <div class="value">${complaint.complaint_id}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Title:</div>
+                    <div class="value">${complaint.title}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Category:</div>
+                    <div class="value">${complaint.category}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Status:</div>
+                    <div class="value">
+                        <span class="status ${complaint.status}">${complaint.status.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Priority:</div>
+                    <div class="value">${complaint.priority || 'medium'}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Location:</div>
+                    <div class="value">${complaint.location || 'Not specified'}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Filed Date:</div>
+                    <div class="value">${new Date(complaint.created_at).toLocaleDateString()}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Last Updated:</div>
+                    <div class="value">${new Date(complaint.updated_at).toLocaleDateString()}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Description:</div>
+                    <div class="value">${complaint.description}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="label">Evidence:</div>
+                    <div class="value">${complaint.evidence || 'No evidence provided'}</div>
+                </div>
+                
+                <div class="section no-print" style="margin-top: 40px; text-align: center; color: #666;">
+                    <small>This is an official complaint document from ObservX System</small>
+                </div>
+            `;
+        }
+
+        function showShareSuccess(message) {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed top-0 end-0 p-3';
+            toast.style.zIndex = '1050';
+            toast.innerHTML = `
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <strong class="me-auto">Success!</strong>
+                        <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 3000);
+        }
+
+        // Load complaint on page load
+        window.onload = function() {
+            console.log('Local complaint view page loaded');
+            loadComplaint();
+        };
+    </script>
+</body>
+</html>

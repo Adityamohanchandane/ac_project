@@ -144,8 +144,10 @@ const pages = {
   'police-login': renderPoliceLogin,
   'user-register': renderUserRegister,
   'user-dashboard': renderUserDashboard,
+  'user-dashboard-enhanced': () => window.location.href = 'user_dashboard_enhanced.html',
   'police-dashboard': renderPoliceDashboard,
   'file-complaint': renderFileComplaint,
+  'emergency-complaint': () => window.location.href = 'emergency_complaint.html',
   'view-complaint': renderViewComplaint,
   'my-complaints': renderMyComplaints,
   'view-complaints': renderViewComplaints,
@@ -535,27 +537,27 @@ function renderUserRegister() {
         <form id="registerForm">
           <div class="mb-3">
             <label class="form-label">Full Name</label>
-            <input type="text" class="form-control" name="cname" id="fullName" required>
+            <input type="text" class="form-control" name="fullName" id="fullName" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Email</label>
-            <input type="email" class="form-control" name="cemail" id="email" required>
+            <input type="email" class="form-control" name="email" id="email" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Mobile Number</label>
-            <input type="tel" class="form-control" name="cmobile" id="mobile" required>
+            <input type="tel" class="form-control" name="mobile" id="mobile" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Address</label>
-            <textarea class="form-control" name="caddress" id="address" rows="2"></textarea>
+            <textarea class="form-control" name="address" id="address" rows="2"></textarea>
           </div>
           <div class="mb-3">
             <label class="form-label">Password</label>
-            <input type="password" class="form-control" name="cpassword" id="password" required>
+            <input type="password" class="form-control" name="password" id="password" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Confirm Password</label>
-            <input type="password" class="form-control" name="cpass" id="confirmPassword" required>
+            <input type="password" class="form-control" name="password2" id="confirmPassword" required>
           </div>
           <div id="registerAlert"></div>
           <button type="submit" class="btn btn-primary w-100">Register</button>
@@ -729,9 +731,14 @@ function renderUserDashboard() {
           <h2>Welcome, ${currentUser.email}</h2>
           <p class="mb-0">Citizen Dashboard</p>
         </div>
-        <a href="#/file-complaint" class="btn btn-light">
-          <i class="bi bi-file-earmark-plus"></i> File Complaint
-        </a>
+        <div>
+          <a href="#/emergency-complaint" class="btn btn-danger me-2">
+            <i class="bi bi-exclamation-triangle-fill"></i> Emergency
+          </a>
+          <a href="#/file-complaint" class="btn btn-light">
+            <i class="bi bi-file-earmark-plus"></i> File Complaint
+          </a>
+        </div>
       </div>
 
       <div class="row g-3 mb-4">
@@ -764,11 +771,14 @@ function renderUserDashboard() {
 }
 
 function renderMyComplaints() {
-  if (!currentUser || currentUserRole === 'police') {
+  console.log('renderMyComplaints called')
+  
+  // Temporarily remove login requirement for testing
+  if (currentUserRole === 'police') {
     return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access.</div></div>`
   }
 
-  return `
+  const html = `
     <div class="container">
       <h2 class="mb-4"><i class="bi bi-file-text"></i> My Complaints</h2>
 
@@ -783,6 +793,129 @@ function renderMyComplaints() {
       </div>
     </div>
   `
+  
+  console.log('Returning HTML for My Complaints')
+  
+  // Load complaints after a short delay
+  setTimeout(() => {
+    console.log('Loading complaints...')
+    console.log('Current user:', currentUser)
+    console.log('Current role:', currentUserRole)
+    loadUserComplaints()
+    
+    // Add search functionality
+    const searchInput = document.getElementById('searchInput')
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase()
+        filterComplaints(searchTerm)
+      })
+    }
+  }, 500)
+  
+  return html
+}
+
+let allComplaints = []
+
+async function loadUserComplaints() {
+  const container = document.getElementById('myComplaintsContainer')
+  if (!container) return
+  
+  try {
+    const res = await fetch('http://localhost/adii/get_complaints.php', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors'
+    })
+    
+    const data = await res.json()
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to load complaints')
+    }
+    
+    allComplaints = data.complaints
+    renderUserComplaintsList(allComplaints)
+    
+  } catch (error) {
+    console.error('Error loading complaints:', error)
+    container.innerHTML = `<div class="alert alert-danger">Failed to load complaints: ${error.message}</div>`
+  }
+}
+
+function filterComplaints(searchTerm) {
+  if (!searchTerm) {
+    renderUserComplaintsList(allComplaints)
+    return
+  }
+  
+  const filtered = allComplaints.filter(complaint => 
+    complaint.title.toLowerCase().includes(searchTerm) ||
+    complaint.complaint_id.toLowerCase().includes(searchTerm) ||
+    complaint.category.toLowerCase().includes(searchTerm)
+  )
+  
+  renderUserComplaintsList(filtered)
+}
+
+function renderUserComplaintsList(complaints) {
+  const container = document.getElementById('myComplaintsContainer')
+  if (!container) return
+  
+  if (complaints.length === 0) {
+    container.innerHTML = `
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle"></i> No complaints found. 
+        <a href="#/file-complaint" class="btn btn-primary btn-sm ms-2">File Your First Complaint</a>
+      </div>
+    `
+    return
+  }
+  
+  const complaintsHtml = complaints.map(complaint => `
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-8">
+            <h5 class="card-title">${complaint.title}</h5>
+            <p class="card-text">${complaint.description.substring(0, 100)}${complaint.description.length > 100 ? '...' : ''}</p>
+            <div class="mb-2">
+              <span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span>
+              <span class="badge bg-secondary ms-2">${complaint.category}</span>
+            </div>
+          </div>
+          <div class="col-md-4 text-end">
+            <div class="text-muted small">
+              <div><strong>ID:</strong> ${complaint.complaint_id}</div>
+              <div><strong>Date:</strong> ${new Date(complaint.created_at).toLocaleDateString()}</div>
+            </div>
+            <button class="btn btn-outline-primary btn-sm mt-2" onclick="viewComplaint('${complaint.complaint_id}')">
+              <i class="bi bi-eye"></i> View
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('')
+  
+  container.innerHTML = complaintsHtml
+}
+
+function getStatusColor(status) {
+  switch (status.toLowerCase()) {
+    case 'pending': return 'warning'
+    case 'under_investigation': return 'info'
+    case 'resolved': return 'success'
+    case 'closed': return 'secondary'
+    default: return 'secondary'
+  }
+}
+
+window.viewComplaint = function(complaintId) {
+  location.hash = `#/view-complaint?id=${complaintId}`
 }
 
 function renderPoliceDashboard() {
@@ -863,8 +996,12 @@ function renderPoliceDashboard() {
 }
 
 function renderViewComplaint() {
-  if (!currentUser) {
-    return `<div class="container mt-5"><div class="alert alert-danger">Please login to view complaint details.</div></div>`
+  // Temporarily remove login requirement for testing
+  const urlParams = new URLSearchParams(window.location.search)
+  const complaintId = urlParams.get('id') || ''
+  
+  if (!complaintId) {
+    return `<div class="container mt-5"><div class="alert alert-danger">No complaint ID provided.</div></div>`
   }
 
   return `
@@ -879,6 +1016,87 @@ function renderViewComplaint() {
       </div>
     </div>
   `
+  
+  // Load complaint details after rendering
+  setTimeout(() => loadComplaintDetail(complaintId), 100)
+}
+
+async function loadComplaintDetail(complaintId) {
+  const container = document.getElementById('complaintDetailContainer')
+  if (!container) return
+  
+  try {
+    const res = await fetch(`http://localhost/adii/get_complaint.php?id=${complaintId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors'
+    })
+    
+    const data = await res.json()
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to load complaint')
+    }
+    
+    renderComplaintDetail(data.complaint)
+    
+  } catch (error) {
+    console.error('Error loading complaint:', error)
+    container.innerHTML = `<div class="alert alert-danger">Failed to load complaint: ${error.message}</div>`
+  }
+}
+
+function renderComplaintDetail(complaint) {
+  const container = document.getElementById('complaintDetailContainer')
+  if (!container) return
+  
+  const html = `
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="bi bi-file-text"></i> ${complaint.title}</h4>
+      </div>
+      <div class="card-body">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <strong>Complaint ID:</strong> ${complaint.complaint_id}
+          </div>
+          <div class="col-md-6 text-end">
+            <strong>Status:</strong> 
+            <span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span>
+          </div>
+        </div>
+        
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <strong>Category:</strong> ${complaint.category}
+          </div>
+          <div class="col-md-6 text-end">
+            <strong>Filed Date:</strong> ${new Date(complaint.created_at).toLocaleDateString()}
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <strong>Description:</strong>
+          <p class="mt-2">${complaint.description}</p>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <strong>Last Updated:</strong> ${new Date(complaint.updated_at).toLocaleDateString()}
+          </div>
+          <div class="col-md-6 text-end">
+            <button class="btn btn-outline-secondary" onclick="window.print()">
+              <i class="bi bi-printer"></i> Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+  
+  container.innerHTML = html
 }
 
 function renderViewComplaints() {
@@ -971,18 +1189,14 @@ async function handleUserRegister(form) {
     payload.append('mobile', mobile)
     payload.append('address', address)
 
-    // Try multiple possible backend endpoints to avoid dev-server vs Apache routing issues
+    // For Vite dev server, use the PHP backend
     const tried = []
     const candidates = []
-    // Prefer same-origin register endpoint, then common dev paths
-    if (backendBase) candidates.push(`${backendBase}/register.php`)
-    candidates.push(`${window.location.origin}/register.php`)
-    candidates.push('/adii/register.php')
-    // legacy/dev paths
-    if (backendBase) candidates.push(`${backendBase}/adii/register.php`)
-    candidates.push(`${window.location.protocol}//${window.location.hostname}/adii/register.php`)
-    candidates.push('http://localhost/adii/register.php')
-    candidates.push('http://127.0.0.1/adii/register.php')
+    // Try XAMPP URLs for PHP processing
+    candidates.push('http://localhost/adii/register_clean.php')
+    candidates.push('http://127.0.0.1/adii/register_clean.php')
+    candidates.push('http://localhost/adii/simple_register.php')
+    candidates.push('http://127.0.0.1/adii/simple_register.php')
 
     let lastError = null
     let handled = false
@@ -999,6 +1213,7 @@ async function handleUserRegister(form) {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
           body: payload,
+          mode: 'cors'
         })
 
         const responseText = await res.text()
@@ -1012,8 +1227,12 @@ async function handleUserRegister(form) {
             break
           }
 
-          alertDiv.innerHTML = '<div class="alert alert-success">Registration successful! <a href="#/user-login">Login here</a></div>'
+          alertDiv.innerHTML = '<div class="alert alert-success">Registration successful! Redirecting to login...</div>'
           form.reset()
+          // Redirect to login page after 2 seconds
+          setTimeout(() => {
+            window.location.hash = '#/user-login'
+          }, 2000)
           handled = true
           break
         } catch (jsonError) {
@@ -1048,22 +1267,58 @@ async function handleUserLogin(form) {
     payload.append('email', email)
     payload.append('password', password)
 
-    const res = await fetch('/login.php', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json' },
-      body: payload,
-    })
+    // Try multiple login endpoints
+    const candidates = [
+      'http://localhost/adii/login.php',
+      'http://127.0.0.1/adii/login.php'
+    ]
+    
+    let handled = false
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: payload,
+          mode: 'cors'
+        })
 
-    const json = await res.json()
-    if (!res.ok || !json.success) {
-      alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Login failed'}</div>`
-      return
+        const json = await res.json()
+        if (!res.ok || !json.success) {
+          alertDiv.innerHTML = `<div class="alert alert-danger">${json.message || 'Login failed'}</div>`
+          handled = true
+          break
+        }
+
+        alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
+        
+        // Set current user from login response
+        currentUser = {
+          email: email,
+          role: 'user'
+        }
+        currentUserRole = 'user'
+        
+        // Update auth menu
+        updateAuthMenu()
+        
+        setTimeout(() => {
+          location.hash = '#/user-dashboard'
+        }, 500)
+        handled = true
+        break
+      } catch (error) {
+        console.warn('Login attempt to', url, 'failed:', error)
+        continue
+      }
     }
-
-    alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
-    setTimeout(() => {
-      location.hash = '#/user-dashboard'
-    }, 500)
+    
+    if (!handled) {
+      alertDiv.innerHTML = `<div class="alert alert-danger">All login attempts failed</div>`
+    }
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }
@@ -1079,10 +1334,14 @@ async function handlePoliceLogin(form) {
     payload.append('email', email)
     payload.append('password', password)
 
-    const res = await fetch('/police-login.php', {
+    const res = await fetch('http://localhost/adii/police-login.php', {
       method: 'POST',
-      headers: { 'Accept': 'application/json' },
+      headers: { 
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
       body: payload,
+      mode: 'cors'
     })
 
     const json = await res.json()
@@ -1092,6 +1351,17 @@ async function handlePoliceLogin(form) {
     }
 
     alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
+    
+    // Set current user from login response
+    currentUser = {
+      email: email,
+      role: 'police'
+    }
+    currentUserRole = 'police'
+    
+    // Update auth menu
+    updateAuthMenu()
+    
     setTimeout(() => {
       location.hash = '#/police-dashboard'
     }, 500)
@@ -1111,18 +1381,24 @@ async function handleComplaintSubmit(form) {
   const alertDiv = document.getElementById('complaintAlert')
 
   try {
-    // Validate user location captured
-    if (!userLocationInput.value) {
-      throw new Error('Please capture your current location using the GPS button')
-    }
-
-    // Parse user location from data attribute
-    const userLocationStr = userLocationInput.getAttribute('data-location')
+    // Parse user location from data attribute (optional for now)
     let userLocation = null
-    try {
-      userLocation = JSON.parse(userLocationStr)
-    } catch (e) {
-      throw new Error('Invalid location format. Try capturing again.')
+    const userLocationStr = userLocationInput.getAttribute('data-location')
+    
+    if (userLocationStr) {
+      try {
+        userLocation = JSON.parse(userLocationStr)
+      } catch (e) {
+        // If location parsing fails, continue without location
+        console.warn('Invalid location format, continuing without location')
+      }
+    } else {
+      // If no location captured, use dummy location for testing
+      userLocation = {
+        lat: 19.0760,
+        lng: 72.8777,
+        address: "Mumbai, Maharashtra"
+      }
     }
 
     // Crime location (basic parsing - can be extended with geocoding)
@@ -1146,7 +1422,6 @@ async function handleComplaintSubmit(form) {
 
     // Submit to backend with location data
     const payload = {
-      user_id: currentUser.id,
       title,
       category,
       incident_date: incidentDate,
@@ -1155,13 +1430,31 @@ async function handleComplaintSubmit(form) {
       description
     }
 
-    const res = await fetch('/file-complaint', {
+    console.log('Submitting complaint:', payload)
+    
+    const res = await fetch('http://localhost/adii/file_complaint.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      mode: 'cors'
     })
 
-    const data = await res.json()
+    console.log('Response status:', res.status)
+    console.log('Response headers:', res.headers)
+    
+    const responseText = await res.text()
+    console.log('Raw response:', responseText)
+    
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (e) {
+      console.error('JSON parse error:', e)
+      throw new Error('Server returned invalid response: ' + responseText)
+    }
 
     if (!data.success) {
       throw new Error(data.message || 'Failed to file complaint')
