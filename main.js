@@ -1596,24 +1596,24 @@ function renderEmergencyComplaint() {
       <div class="row">
         <div class="col-lg-8 mx-auto">
           <div class="form-section emergency-section">
-            <div class="alert alert-danger d-flex align-items-center mb-4">
-              <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+            <div class="alert alert-info d-flex align-items-center mb-4">
+              <i class="bi bi-info-circle me-3 fs-4"></i>
               <div>
                 <strong>EMERGENCY COMPLAINT</strong>
                 <div class="small">For urgent matters requiring immediate police attention</div>
               </div>
             </div>
             
-            <h2 class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> File an Emergency Complaint</h2>
-            <p class="text-danger fw-bold">This will be prioritized for immediate action</p>
+            <h2 class="text-info"><i class="bi bi-info-circle"></i> File an Emergency Complaint</h2>
+            <p class="text-muted">This will be prioritized for immediate action</p>
             
             <form id="emergencyComplaintForm">
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label class="form-label">Emergency Type <span class="text-danger">*</span></label>
-                    <select class="form-select border-danger" id="emergencyType" required>
-                      <option value="">Select emergency type</option>
+                    <label class="form-label">Emergency Type</label>
+                    <select class="form-select border-info" id="emergencyType">
+                      <option value="">Select emergency type (optional)</option>
                       <option value="life-threatening">Life Threatening</option>
                       <option value="crime-in-progress">Crime in Progress</option>
                       <option value="accident">Serious Accident</option>
@@ -1628,20 +1628,20 @@ function renderEmergencyComplaint() {
                 
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label class="form-label">Urgency Level <span class="text-danger">*</span></label>
+                    <label class="form-label">Urgency Level</label>
                     <div class="btn-group w-100" role="group">
-                      <input type="radio" class="btn-check" name="urgency" id="urgency-critical" value="critical" required>
-                      <label class="btn btn-outline-danger" for="urgency-critical">
+                      <input type="radio" class="btn-check" name="urgency" id="urgency-critical" value="critical">
+                      <label class="btn btn-outline-info" for="urgency-critical">
                         <i class="bi bi-exclamation-triangle"></i> Critical
                       </label>
                       
-                      <input type="radio" class="btn-check" name="urgency" id="urgency-high" value="high" required>
+                      <input type="radio" class="btn-check" name="urgency" id="urgency-high" value="high">
                       <label class="btn btn-outline-warning" for="urgency-high">
                         <i class="bi bi-exclamation-circle"></i> High
                       </label>
                       
-                      <input type="radio" class="btn-check" name="urgency" id="urgency-medium" value="medium" required>
-                      <label class="btn btn-outline-info" for="urgency-medium">
+                      <input type="radio" class="btn-check" name="urgency" id="urgency-medium" value="medium">
+                      <label class="btn btn-outline-secondary" for="urgency-medium">
                         <i class="bi bi-info-circle"></i> Medium
                       </label>
                     </div>
@@ -1650,58 +1650,58 @@ function renderEmergencyComplaint() {
               </div>
               
               <div class="mb-3">
-                <label class="form-label">Emergency Title <span class="text-danger">*</span></label>
-                <input type="text" class="form-control border-danger" id="emergencyTitle" placeholder="Brief description of emergency" required>
+                <label class="form-label">Emergency Title</label>
+                <input type="text" class="form-control border-info" id="emergencyTitle" placeholder="Brief description of emergency (optional)">
               </div>
               
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label class="form-label">Photo Location <span class="text-danger">*</span></label>
+                    <label class="form-label">Photo Location</label>
                     <div class="input-group">
-                      <input type="text" class="form-control border-danger" id="photoLocation" placeholder="Where photo was taken" required>
-                      <button class="btn btn-danger" type="button" id="capturePhotoLocation">
+                      <input type="text" class="form-control border-info" id="photoLocation" placeholder="Where photo was taken (optional)">
+                      <button class="btn btn-info" type="button" id="capturePhotoLocation">
                         <i class="bi bi-camera"></i> Capture
                       </button>
                     </div>
-                    <small class="text-danger">Location where the photo/evidence was captured</small>
+                    <small class="text-muted">Location where the photo/evidence was captured (optional)</small>
                   </div>
                 </div>
                 
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label class="form-label">Upload Photo <span class="text-danger">*</span></label>
-                    <input type="file" class="form-control border-danger" id="emergencyPhoto" accept="image/*" required>
-                    <small class="text-danger">Photo evidence is required for emergency complaints</small>
+                    <label class="form-label">Upload Photo</label>
+                    <input type="file" class="form-control border-info" id="emergencyPhoto" accept="image/*">
+                    <small class="text-muted">Photo evidence (optional)</small>
                   </div>
                 </div>
               </div>
               
               <div class="mb-3">
-                <label class="form-label">Emergency Description <span class="text-danger">*</span></label>
-                <textarea class="form-control border-danger" id="emergencyDescription" rows="3" placeholder="Describe the emergency situation in detail" required></textarea>
+                <label class="form-label">Emergency Description</label>
+                <textarea class="form-control border-info" id="emergencyDescription" rows="3" placeholder="Describe the emergency situation in detail (optional)"></textarea>
               </div>
               
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-                    <input type="tel" class="form-control border-danger" id="emergencyContact" placeholder="Your mobile number" required>
+                    <label class="form-label">Contact Number</label>
+                    <input type="tel" class="form-control border-info" id="emergencyContact" placeholder="Your mobile number (optional)">
                   </div>
                 </div>
                 
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label class="form-label">Your Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control border-danger" id="emergencyName" placeholder="Your full name" required>
+                    <label class="form-label">Your Name</label>
+                    <input type="text" class="form-control border-info" id="emergencyName" placeholder="Your full name (optional)">
                   </div>
                 </div>
               </div>
               
               <div class="mb-3">
                 <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="confirmEmergency" required>
-                  <label class="form-check-label text-danger" for="confirmEmergency">
+                  <input class="form-check-input" type="checkbox" id="confirmEmergency">
+                  <label class="form-check-label text-info" for="confirmEmergency">
                     I confirm this is a genuine emergency requiring immediate police attention
                   </label>
                 </div>
@@ -1709,8 +1709,8 @@ function renderEmergencyComplaint() {
               
               <div id="emergencyComplaintAlert"></div>
               
-              <button type="submit" class="btn btn-danger w-100 btn-lg">
-                <i class="bi bi-exclamation-triangle-fill"></i> Submit Emergency Complaint
+              <button type="submit" class="btn btn-info w-100 btn-lg">
+                <i class="bi bi-info-circle"></i> Submit Emergency Complaint
               </button>
             </form>
           </div>
@@ -1876,12 +1876,9 @@ async function handleEmergencyComplaintSubmit(form) {
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
   try {
+    // Only require confirmation checkbox
     if (!confirmEmergency) {
       throw new Error('Please confirm this is a genuine emergency')
-    }
-
-    if (!emergencyType || !urgencyLevel || !title || !photoLocation || !description || !contactNumber || !emergencyName) {
-      throw new Error('Please fill in all required fields')
     }
 
     // Photo location data
@@ -1952,9 +1949,9 @@ async function handleEmergencyComplaintSubmit(form) {
     let successMessage = `<div class="alert alert-success alert-dismissible">
       <strong><i class="bi bi-check-circle-fill"></i> Emergency Complaint Filed Successfully!</strong><br>
       <strong>Complaint ID:</strong> ${data.complaint_id}<br>
-      <strong>Priority:</strong> ${urgencyLevel?.toUpperCase()}<br>
+      <strong>Priority:</strong> ${urgencyLevel?.toUpperCase() || 'STANDARD'}<br>
       <small>Your emergency complaint has been marked for immediate attention.<br>
-      Police will contact you at ${contactNumber} if needed.</small>`
+      ${contactNumber ? `Police will contact you at ${contactNumber} if needed.` : 'Contact information not provided.'}</small>`
     
     if (data.evidence_file) {
       successMessage += `<br><strong>Evidence File:</strong> ${data.evidence_file}`
