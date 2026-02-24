@@ -629,14 +629,19 @@ function renderPoliceLogin() {
         <div class="alert alert-info mb-3">
           <small>This portal is exclusively for authorized police officers only.</small>
         </div>
+        <div class="alert alert-success mb-3">
+          <small><strong>Test Credentials:</strong><br>
+          📧 Email: police@observx.com<br>
+          🔑 Password: police123</small>
+        </div>
         <form id="policeLoginForm">
           <div class="mb-3">
             <label class="form-label">Police Email ID</label>
-            <input type="email" class="form-control" id="policeEmail" placeholder="officer@secureindiapolice.gov.in" required>
+            <input type="email" class="form-control" id="policeEmail" placeholder="police@observx.com" value="police@observx.com" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="policePassword" required>
+            <input type="password" class="form-control" id="policePassword" placeholder="police123" value="police123" required>
           </div>
           <div id="policeLoginAlert"></div>
           <button type="submit" class="btn btn-secondary w-100">Login</button>
