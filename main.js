@@ -1517,13 +1517,18 @@ document.addEventListener('submit', async (e) => {
 })
 
 async function handleUserRegister(form) {
-  const fullName = document.getElementById('fullName').value
-  const email = document.getElementById('email').value
-  const mobile = document.getElementById('mobile').value
-  const address = document.getElementById('address').value
-  const password = document.getElementById('password').value
+  const fullName = document.getElementById('fullName')?.value || ''
+  const email = document.getElementById('email')?.value || ''
+  const mobile = document.getElementById('mobile')?.value || ''
+  const address = document.getElementById('address')?.value || ''
+  const password = document.getElementById('password')?.value || ''
   const confirmPassword = document.getElementById('password2') ? document.getElementById('password2').value : (document.getElementById('confirmPassword') ? document.getElementById('confirmPassword').value : '')
   const alertDiv = document.getElementById('registerAlert')
+
+  if (!fullName || !email || !mobile || !password) {
+    alertDiv.innerHTML = `<div class="alert alert-danger">Please fill in all required fields</div>`
+    return
+  }
 
   if (password !== confirmPassword) {
     alertDiv.innerHTML = '<div class="alert alert-danger">Passwords do not match</div>'
@@ -1608,9 +1613,14 @@ async function handleUserRegister(form) {
 }
 
 async function handleUserLogin(form) {
-  const email = document.getElementById('loginEmail').value
-  const password = document.getElementById('loginPassword').value
+  const email = document.getElementById('loginEmail')?.value || ''
+  const password = document.getElementById('loginPassword')?.value || ''
   const alertDiv = document.getElementById('loginAlert')
+
+  if (!email || !password) {
+    alertDiv.innerHTML = `<div class="alert alert-danger">Please fill in all required fields</div>`
+    return
+  }
 
   try {
     // First try PHP backend
@@ -1678,9 +1688,14 @@ async function handleUserLogin(form) {
 }
 
 async function handlePoliceLogin(form) {
-  const email = document.getElementById('policeEmail').value
-  const password = document.getElementById('policePassword').value
+  const email = document.getElementById('policeEmail')?.value || ''
+  const password = document.getElementById('policePassword')?.value || ''
   const alertDiv = document.getElementById('policeLoginAlert')
+
+  if (!email || !password) {
+    alertDiv.innerHTML = `<div class="alert alert-danger">Please fill in all required fields</div>`
+    return
+  }
 
   try {
     const payload = new URLSearchParams()
@@ -1724,16 +1739,19 @@ async function handlePoliceLogin(form) {
 }
 
 async function handleComplaintSubmit(form) {
-  const title = document.getElementById('complaintTitle').value
-  const category = document.getElementById('category').value
-  const incidentDate = document.getElementById('incidentDate').value
+  const title = document.getElementById('complaintTitle')?.value || ''
+  const category = document.getElementById('category')?.value || ''
+  const incidentDate = document.getElementById('incidentDate')?.value || ''
   const userLocationInput = document.getElementById('userLocation')
-  const crimeLocation = document.getElementById('crimeLocation').value
-  const description = document.getElementById('description').value
-  const evidenceFile = document.getElementById('evidenceFile').files[0]
+  const crimeLocation = document.getElementById('crimeLocation')?.value || ''
+  const description = document.getElementById('description')?.value || ''
+  const evidenceFile = document.getElementById('evidenceFile')?.files[0]
   const alertDiv = document.getElementById('complaintAlert')
 
   try {
+    if (!title || !category || !incidentDate || !crimeLocation || !description) {
+      throw new Error('Please fill in all required fields')
+    }
     // Parse user location from data attribute (optional for now)
     let userLocation = null
     const userLocationStr = userLocationInput.getAttribute('data-location')
@@ -1836,9 +1854,24 @@ async function handleComplaintSubmit(form) {
     successMessage += `</div>`
     
     alertDiv.innerHTML = successMessage
-    form.reset()
-    document.getElementById('userLocation').value = ''
-    document.getElementById('userLocation').removeAttribute('data-location')
+    
+    // Safe form reset
+    try {
+      form.reset()
+    } catch (e) {
+      console.warn('Form reset failed:', e)
+    }
+    
+    // Safe field clearing
+    try {
+      const userLocation = document.getElementById('userLocation')
+      if (userLocation) {
+        userLocation.value = ''
+        userLocation.removeAttribute('data-location')
+      }
+    } catch (e) {
+      console.warn('User location field reset failed:', e)
+    }
     
     setTimeout(() => {
       location.hash = '#/my-complaints'
@@ -1849,20 +1882,24 @@ async function handleComplaintSubmit(form) {
 }
 
 async function handleEmergencyComplaintSubmit(form) {
-  const emergencyType = document.getElementById('emergencyType').value
-  const urgencyLevel = document.querySelector('input[name="urgency"]:checked')?.value
-  const title = document.getElementById('emergencyTitle').value
-  const photoLocation = document.getElementById('photoLocation').value
-  const emergencyPhoto = document.getElementById('emergencyPhoto').files[0]
-  const description = document.getElementById('emergencyDescription').value
-  const contactNumber = document.getElementById('emergencyContact').value
-  const emergencyName = document.getElementById('emergencyName').value
-  const confirmEmergency = document.getElementById('confirmEmergency').checked
+  const emergencyType = document.getElementById('emergencyType')?.value || ''
+  const urgencyLevel = document.querySelector('input[name="urgency"]:checked')?.value || ''
+  const title = document.getElementById('emergencyTitle')?.value || ''
+  const photoLocation = document.getElementById('photoLocation')?.value || ''
+  const emergencyPhoto = document.getElementById('emergencyPhoto')?.files[0]
+  const description = document.getElementById('emergencyDescription')?.value || ''
+  const contactNumber = document.getElementById('emergencyContact')?.value || ''
+  const emergencyName = document.getElementById('emergencyName')?.value || ''
+  const confirmEmergency = document.getElementById('confirmEmergency')?.checked || false
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
   try {
     if (!confirmEmergency) {
       throw new Error('Please confirm this is a genuine emergency')
+    }
+
+    if (!emergencyType || !urgencyLevel || !title || !photoLocation || !description || !contactNumber || !emergencyName) {
+      throw new Error('Please fill in all required fields')
     }
 
     // Photo location data
@@ -1944,9 +1981,34 @@ async function handleEmergencyComplaintSubmit(form) {
     successMessage += `</div>`
     
     alertDiv.innerHTML = successMessage
-    form.reset()
-    document.getElementById('emergencyUserLocation').value = ''
-    document.getElementById('emergencyUserLocation').removeAttribute('data-location')
+    
+    // Safe form reset
+    try {
+      form.reset()
+    } catch (e) {
+      console.warn('Form reset failed:', e)
+    }
+    
+    // Safe field clearing
+    try {
+      const photoLocationInput = document.getElementById('photoLocation')
+      if (photoLocationInput) {
+        photoLocationInput.value = ''
+        photoLocationInput.removeAttribute('data-location')
+      }
+    } catch (e) {
+      console.warn('Photo location field reset failed:', e)
+    }
+    
+    try {
+      const emergencyUserLocation = document.getElementById('emergencyUserLocation')
+      if (emergencyUserLocation) {
+        emergencyUserLocation.value = ''
+        emergencyUserLocation.removeAttribute('data-location')
+      }
+    } catch (e) {
+      console.warn('Emergency user location field reset failed:', e)
+    }
     
     setTimeout(() => {
       location.hash = '#/my-complaints'
