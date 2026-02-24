@@ -402,12 +402,64 @@ async function loadPage(route) {
       
       // Attach emergency location capture button listener if on emergency complaint page
       if (route === 'emergency-complaint') {
-        const captureBtn = document.getElementById('capturePhotoLocation')
+        const captureBtn = document.getElementById('captureEmergencyLocation')
         if (captureBtn) {
           captureBtn.addEventListener('click', async (e) => {
             e.preventDefault()
             captureBtn.disabled = true
             captureBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...'
+            
+            try {
+              const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 0
+                })
+              })
+              
+              const { latitude, longitude } = position.coords
+              const locationInput = document.getElementById('emergencyLocation')
+              locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+              locationInput.setAttribute('data-location', JSON.stringify({
+                lat: latitude,
+                lng: longitude,
+                captured_at: new Date().toISOString()
+              }))
+              
+              captureBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured'
+              captureBtn.classList.remove('btn-info')
+              captureBtn.classList.add('btn-success')
+              
+              setTimeout(() => {
+                captureBtn.disabled = false
+                captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture'
+                captureBtn.classList.remove('btn-success')
+                captureBtn.classList.add('btn-info')
+              }, 2000)
+              
+            } catch (error) {
+              console.error('Emergency location capture failed:', error)
+              captureBtn.innerHTML = '<i class="bi bi-x-circle"></i> Failed'
+              captureBtn.classList.remove('btn-info')
+              captureBtn.classList.add('btn-outline-danger')
+              
+              setTimeout(() => {
+                captureBtn.disabled = false
+                captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture'
+                captureBtn.classList.remove('btn-outline-danger')
+                captureBtn.classList.add('btn-info')
+              }, 2000)
+            }
+          })
+        }
+        
+        const capturePhotoBtn = document.getElementById('capturePhotoLocation')
+        if (capturePhotoBtn) {
+          capturePhotoBtn.addEventListener('click', async (e) => {
+            e.preventDefault()
+            capturePhotoBtn.disabled = true
+            capturePhotoBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...'
             
             try {
               const position = await new Promise((resolve, reject) => {
@@ -427,28 +479,28 @@ async function loadPage(route) {
                 captured_at: new Date().toISOString()
               }))
               
-              captureBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured'
-              captureBtn.classList.remove('btn-danger')
-              captureBtn.classList.add('btn-success')
+              capturePhotoBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured'
+              capturePhotoBtn.classList.remove('btn-info')
+              capturePhotoBtn.classList.add('btn-success')
               
               setTimeout(() => {
-                captureBtn.disabled = false
-                captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
-                captureBtn.classList.remove('btn-success')
-                captureBtn.classList.add('btn-danger')
+                capturePhotoBtn.disabled = false
+                capturePhotoBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
+                capturePhotoBtn.classList.remove('btn-success')
+                capturePhotoBtn.classList.add('btn-info')
               }, 2000)
               
             } catch (error) {
               console.error('Photo location capture failed:', error)
-              captureBtn.innerHTML = '<i class="bi bi-x-circle"></i> Failed'
-              captureBtn.classList.remove('btn-danger')
-              captureBtn.classList.add('btn-outline-danger')
+              capturePhotoBtn.innerHTML = '<i class="bi bi-x-circle"></i> Failed'
+              capturePhotoBtn.classList.remove('btn-info')
+              capturePhotoBtn.classList.add('btn-outline-danger')
               
               setTimeout(() => {
-                captureBtn.disabled = false
-                captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
-                captureBtn.classList.remove('btn-outline-danger')
-                captureBtn.classList.add('btn-danger')
+                capturePhotoBtn.disabled = false
+                capturePhotoBtn.innerHTML = '<i class="bi bi-camera"></i> Capture'
+                capturePhotoBtn.classList.remove('btn-outline-danger')
+                capturePhotoBtn.classList.add('btn-info')
               }, 2000)
             }
           })
@@ -1629,6 +1681,17 @@ function renderEmergencyComplaint() {
               </div>
               
               <div class="mb-3">
+                <label class="form-label">Location</label>
+                <div class="input-group">
+                  <input type="text" class="form-control border-info" id="emergencyLocation" placeholder="Where emergency occurred">
+                  <button class="btn btn-info" type="button" id="captureEmergencyLocation">
+                    <i class="bi bi-geo-alt"></i> Capture
+                  </button>
+                </div>
+                <small class="text-muted">Location where the emergency occurred</small>
+              </div>
+              
+              <div class="mb-3">
                 <label class="form-label">Photo Location</label>
                 <div class="input-group">
                   <input type="text" class="form-control border-info" id="photoLocation" placeholder="Where photo was taken">
@@ -1637,6 +1700,12 @@ function renderEmergencyComplaint() {
                   </button>
                 </div>
                 <small class="text-muted">Location where the photo/evidence was captured</small>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Upload Photo</label>
+                <input type="file" class="form-control border-info" id="emergencyPhoto" accept="image/*">
+                <small class="text-muted">Photo evidence (optional)</small>
               </div>
               
               <div class="mb-3">
@@ -1811,13 +1880,11 @@ async function handleComplaintSubmit(form) {
 
 async function handleEmergencyComplaintSubmit(form) {
   const emergencyType = document.getElementById('emergencyType')?.value || ''
-  const urgencyLevel = document.querySelector('input[name="urgency"]:checked')?.value || ''
   const title = document.getElementById('emergencyTitle')?.value || ''
+  const emergencyLocation = document.getElementById('emergencyLocation')?.value || ''
   const photoLocation = document.getElementById('photoLocation')?.value || ''
   const emergencyPhoto = document.getElementById('emergencyPhoto')?.files[0]
   const description = document.getElementById('emergencyDescription')?.value || ''
-  const contactNumber = document.getElementById('emergencyContact')?.value || ''
-  const emergencyName = document.getElementById('emergencyName')?.value || ''
   const confirmEmergency = document.getElementById('confirmEmergency')?.checked || false
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
@@ -1825,6 +1892,12 @@ async function handleEmergencyComplaintSubmit(form) {
     // Only require confirmation checkbox
     if (!confirmEmergency) {
       throw new Error('Please confirm this is a genuine emergency')
+    }
+
+    // Location data
+    const emergencyLocationData = {
+      address: emergencyLocation,
+      captured_at: new Date().toISOString()
     }
 
     // Photo location data
@@ -1838,12 +1911,12 @@ async function handleEmergencyComplaintSubmit(form) {
       title: `[EMERGENCY] ${title}`,
       category: emergencyType,
       incident_date: new Date().toISOString().split('T')[0],
+      emergency_location: emergencyLocationData,
       photo_location: photoLocationData,
-      description: `EMERGENCY TYPE: ${emergencyType}\nURGENCY: ${urgencyLevel}\nCONTACT: ${contactNumber}\nNAME: ${emergencyName}\n\n${description}`,
+      description: `EMERGENCY TYPE: ${emergencyType}\nEMERGENCY LOCATION: ${emergencyLocation}\nPHOTO LOCATION: ${photoLocation}\n\n${description}`,
       emergency_type: emergencyType,
-      urgency_level: urgencyLevel,
-      contact_number: contactNumber,
-      name: emergencyName,
+      emergency_location: emergencyLocation,
+      photo_location: photoLocation,
       is_emergency: true
     }
 
@@ -1854,12 +1927,12 @@ async function handleEmergencyComplaintSubmit(form) {
     formData.append('title', payload.title)
     formData.append('category', payload.category)
     formData.append('incident_date', payload.incident_date)
+    formData.append('emergency_location', JSON.stringify(payload.emergency_location))
     formData.append('photo_location', JSON.stringify(payload.photo_location))
     formData.append('description', payload.description)
     formData.append('emergency_type', payload.emergency_type)
-    formData.append('urgency_level', payload.urgency_level)
-    formData.append('contact_number', payload.contact_number)
-    formData.append('name', payload.name)
+    formData.append('emergency_location', payload.emergency_location)
+    formData.append('photo_location', payload.photo_location)
     formData.append('is_emergency', payload.is_emergency)
     formData.append('user_id', currentUser?.id || 'anonymous')
     
@@ -1895,9 +1968,16 @@ async function handleEmergencyComplaintSubmit(form) {
     let successMessage = `<div class="alert alert-success alert-dismissible">
       <strong><i class="bi bi-check-circle-fill"></i> Emergency Complaint Filed Successfully!</strong><br>
       <strong>Complaint ID:</strong> ${data.complaint_id}<br>
-      <strong>Priority:</strong> ${urgencyLevel?.toUpperCase() || 'STANDARD'}<br>
-      <small>Your emergency complaint has been marked for immediate attention.<br>
-      ${contactNumber ? `Police will contact you at ${contactNumber} if needed.` : 'Contact information not provided.'}</small>`
+      <strong>Priority:</strong> HIGH<br>
+      <small>Your emergency complaint has been marked for immediate attention.</small>`
+    
+    if (emergencyLocation) {
+      successMessage += `<br><strong>Emergency Location:</strong> ${emergencyLocation}`
+    }
+    
+    if (photoLocation) {
+      successMessage += `<br><strong>Photo Location:</strong> ${photoLocation}`
+    }
     
     if (data.evidence_file) {
       successMessage += `<br><strong>Evidence File:</strong> ${data.evidence_file}`
@@ -1916,6 +1996,16 @@ async function handleEmergencyComplaintSubmit(form) {
     
     // Safe field clearing
     try {
+      const emergencyLocationInput = document.getElementById('emergencyLocation')
+      if (emergencyLocationInput) {
+        emergencyLocationInput.value = ''
+        emergencyLocationInput.removeAttribute('data-location')
+      }
+    } catch (e) {
+      console.warn('Emergency location field reset failed:', e)
+    }
+    
+    try {
       const photoLocationInput = document.getElementById('photoLocation')
       if (photoLocationInput) {
         photoLocationInput.value = ''
@@ -1923,16 +2013,6 @@ async function handleEmergencyComplaintSubmit(form) {
       }
     } catch (e) {
       console.warn('Photo location field reset failed:', e)
-    }
-    
-    try {
-      const emergencyUserLocation = document.getElementById('emergencyUserLocation')
-      if (emergencyUserLocation) {
-        emergencyUserLocation.value = ''
-        emergencyUserLocation.removeAttribute('data-location')
-      }
-    } catch (e) {
-      console.warn('Emergency user location field reset failed:', e)
     }
     
     setTimeout(() => {

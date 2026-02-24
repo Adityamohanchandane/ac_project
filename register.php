@@ -4,7 +4,7 @@ ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Add CORS headers
+// Add CORS headersz
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Accept");
@@ -13,11 +13,6 @@ header("Access-Control-Allow-Headers: Content-Type, Accept");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
-
-// CORS headers
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Log every request arrival (minimal, no output)
 @file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] REQUEST: " . ($_SERVER['REQUEST_METHOD'] ?? '-') . " " . ($_SERVER['REQUEST_URI'] ?? '-') . " AJAX=" . (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false ? '1' : '0') . PHP_EOL, FILE_APPEND | LOCK_EX);
