@@ -1624,6 +1624,63 @@ async function handleUpdateComplaint(form) {
   }
 }
 
+// Load complaints from PHP backend (fallback for when Supabase is not available)
+async function loadComplaintsFromPHP(container, statusFilter = '', categoryFilter = '') {
+  try {
+    const response = await fetch('http://localhost:8080/get_complaints.php', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors'
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to load complaints')
+    }
+    
+    const data = await response.json()
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to load complaints')
+    }
+    
+    const complaints = data.complaints || []
+    
+    if (!complaints || complaints.length === 0) {
+      container.innerHTML = '<div class="alert alert-info">No complaints found</div>'
+      return
+    }
+    
+    // Filter complaints based on user role and filters
+    let filteredComplaints = complaints
+    
+    if (currentUserRole === 'user' && currentUser) {
+      filteredComplaints = complaints.filter(c => c.user_id === currentUser.id)
+    }
+    
+    if (statusFilter) {
+      filteredComplaints = filteredComplaints.filter(c => c.status === statusFilter)
+    }
+    
+    if (categoryFilter) {
+      filteredComplaints = filteredComplaints.filter(c => c.category === categoryFilter)
+    }
+    
+    if (currentUserRole === 'police') {
+      renderPoliceComplaintsTable(filteredComplaints)
+    } else {
+      renderUserComplaints(filteredComplaints)
+    }
+    
+    updateStats(filteredComplaints)
+    
+  } catch (error) {
+    console.error('Error loading complaints from PHP:', error)
+    container.innerHTML = `<div class="alert alert-danger">Failed to load complaints: ${error.message}</div>`
+  }
+}
+
 async function logout() {
   try {
     setLoading(true)
