@@ -365,6 +365,61 @@ async function loadPage(route) {
           })
         }
       }
+      
+      // Attach emergency location capture button listener if on emergency complaint page
+      if (route === 'emergency-complaint') {
+        const captureBtn = document.getElementById('captureEmergencyLocation')
+        if (captureBtn) {
+          captureBtn.addEventListener('click', async (e) => {
+            e.preventDefault()
+            captureBtn.disabled = true
+            captureBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...'
+            
+            try {
+              const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 0
+                })
+              })
+              
+              const { latitude, longitude } = position.coords
+              const locationInput = document.getElementById('emergencyUserLocation')
+              locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+              locationInput.setAttribute('data-location', JSON.stringify({
+                lat: latitude,
+                lng: longitude,
+                captured_at: new Date().toISOString()
+              }))
+              
+              captureBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured'
+              captureBtn.classList.remove('btn-danger')
+              captureBtn.classList.add('btn-success')
+              
+              setTimeout(() => {
+                captureBtn.disabled = false
+                captureBtn.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Capture Location'
+                captureBtn.classList.remove('btn-success')
+                captureBtn.classList.add('btn-danger')
+              }, 2000)
+              
+            } catch (error) {
+              console.error('Emergency location capture failed:', error)
+              captureBtn.innerHTML = '<i class="bi bi-x-circle"></i> Failed'
+              captureBtn.classList.remove('btn-danger')
+              captureBtn.classList.add('btn-outline-danger')
+              
+              setTimeout(() => {
+                captureBtn.disabled = false
+                captureBtn.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Capture Location'
+                captureBtn.classList.remove('btn-outline-danger')
+                captureBtn.classList.add('btn-danger')
+              }, 2000)
+            }
+          })
+        }
+      }
     } else {
       content.innerHTML = `
         <div class="container py-5 text-center">

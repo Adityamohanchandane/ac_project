@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routes Test - ObservX</title>
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="bootstrap-icons.css">
+    <style>
+        .route-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            transition: all 0.3s ease;
+        }
+        .route-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .emergency-route {
+            border-left: 4px solid #dc2626;
+            background: #fef2f2;
+        }
+        .normal-route {
+            border-left: 4px solid #2563eb;
+            background: #f0f9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1><i class="bi bi-geo-alt"></i> Routes Test - ObservX</h1>
+        <p class="text-muted">Test all available routes in the application</p>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h3><i class="bi bi-person"></i> User Routes</h3>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-house"></i> Home</h5>
+                    <a href="#/" class="btn btn-primary">Go to Home</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-box-arrow-in-right"></i> User Login</h5>
+                    <a href="#/user-login" class="btn btn-success">User Login</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-person-plus"></i> User Register</h5>
+                    <a href="#/user-register" class="btn btn-info">User Register</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-speedometer2"></i> User Dashboard</h5>
+                    <a href="#/user-dashboard" class="btn btn-primary">User Dashboard</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-file-earmark-text"></i> Normal Complaint</h5>
+                    <a href="#/file-complaint" class="btn btn-primary">File Normal Complaint</a>
+                </div>
+                
+                <div class="route-card emergency-route">
+                    <h5><i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint</h5>
+                    <a href="#/emergency-complaint" class="btn btn-danger">File Emergency Complaint</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-list"></i> My Complaints</h5>
+                    <a href="#/my-complaints" class="btn btn-primary">My Complaints</a>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h3><i class="bi bi-shield"></i> Police Routes</h3>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-shield-check"></i> Police Login</h5>
+                    <a href="#/police-login" class="btn btn-secondary">Police Login</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-speedometer2"></i> Police Dashboard</h5>
+                    <a href="#/police-dashboard" class="btn btn-secondary">Police Dashboard</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-eye"></i> View Complaints</h5>
+                    <a href="#/view-complaints" class="btn btn-secondary">View All Complaints</a>
+                </div>
+                
+                <h3 class="mt-4"><i class="bi bi-info-circle"></i> Other Routes</h3>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-info-circle"></i> About</h5>
+                    <a href="#/about" class="btn btn-outline-primary">About</a>
+                </div>
+                
+                <div class="route-card normal-route">
+                    <h5><i class="bi bi-envelope"></i> Contact</h5>
+                    <a href="#/contact" class="btn btn-outline-primary">Contact</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <h3><i class="bi bi-gear"></i> Test Instructions</h3>
+            <div class="alert alert-info">
+                <h5><i class="bi bi-lightbulb"></i> How to Test:</h5>
+                <ol>
+                    <li>First login as user: <a href="#/user-login">User Login</a></li>
+                    <li>Test normal complaint: <a href="#/file-complaint">File Normal Complaint</a></li>
+                    <li>Test emergency complaint: <a href="#/emergency-complaint">File Emergency Complaint</a></li>
+                    <li>Check user dashboard: <a href="#/user-dashboard">User Dashboard</a></li>
+                    <li>View your complaints: <a href="#/my-complaints">My Complaints</a></li>
+                </ol>
+            </div>
+            
+            <div class="alert alert-warning">
+                <h5><i class="bi bi-exclamation-triangle"></i> For Police Testing:</h5>
+                <ol>
+                    <li>Login as police: <a href="#/police-login">Police Login</a></li>
+                    <li>Check police dashboard: <a href="#/police-dashboard">Police Dashboard</a></li>
+                    <li>View all complaints: <a href="#/view-complaints">View Complaints</a></li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <a href="index.html" class="btn btn-lg btn-success">
+                <i class="bi bi-house"></i> Go to Main Application
+            </a>
+        </div>
+    </div>
+    
+    <script src="bootstrap.bundle.min.js"></script>
+</body>
+</html>
