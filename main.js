@@ -1193,10 +1193,10 @@ async function handleUserRegister(form) {
     const tried = []
     const candidates = []
     // Try XAMPP URLs for PHP processing
-    candidates.push('http://localhost/adii/register_clean.php')
-    candidates.push('http://127.0.0.1/adii/register_clean.php')
-    candidates.push('http://localhost/adii/simple_register.php')
-    candidates.push('http://127.0.0.1/adii/simple_register.php')
+    candidates.push('http://localhost:8080/register.php')
+    candidates.push('http://127.0.0.1:8080/register.php')
+    candidates.push('http://localhost/register.php')
+    candidates.push('http://127.0.0.1/register.php')
 
     let lastError = null
     let handled = false
@@ -1269,8 +1269,10 @@ async function handleUserLogin(form) {
 
     // Try multiple login endpoints
     const candidates = [
-      'http://localhost/adii/login.php',
-      'http://127.0.0.1/adii/login.php'
+      'http://localhost:8080/login.php',
+      'http://127.0.0.1:8080/login.php',
+      'http://localhost/login.php',
+      'http://127.0.0.1/login.php'
     ]
     
     let handled = false
@@ -1334,7 +1336,7 @@ async function handlePoliceLogin(form) {
     payload.append('email', email)
     payload.append('password', password)
 
-    const res = await fetch('http://localhost/adii/police-login.php', {
+    const res = await fetch('http://localhost:8080/police-login.php', {
       method: 'POST',
       headers: { 
         'Accept': 'application/json',
