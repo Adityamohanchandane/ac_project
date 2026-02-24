@@ -1888,11 +1888,28 @@ async function handleEmergencyComplaintSubmit(form) {
   const confirmEmergency = document.getElementById('confirmEmergency')?.checked || false
   const alertDiv = document.getElementById('emergencyComplaintAlert')
 
+  // Debug logging
+  console.log('=== Emergency Complaint Submission Debug ===')
+  console.log('Form ID:', form.id)
+  console.log('Emergency Type:', emergencyType)
+  console.log('Title:', title)
+  console.log('Emergency Location:', emergencyLocation)
+  console.log('Photo Location:', photoLocation)
+  console.log('Emergency Photo:', emergencyPhoto)
+  console.log('Description:', description)
+  console.log('Confirm Emergency:', confirmEmergency)
+  console.log('Alert Div:', alertDiv)
+  console.log('Alert Div ID:', alertDiv?.id)
+  console.log('Alert Div InnerHTML:', alertDiv?.innerHTML)
+
   try {
     // Only require confirmation checkbox
     if (!confirmEmergency) {
+      console.log('Error: Confirmation checkbox not checked')
       throw new Error('Please confirm this is a genuine emergency')
     }
+
+    console.log('Validation passed, preparing submission...')
 
     // Location data
     const emergencyLocationData = {
@@ -1932,7 +1949,7 @@ async function handleEmergencyComplaintSubmit(form) {
     formData.append('description', payload.description)
     formData.append('emergency_type', payload.emergency_type)
     formData.append('emergency_location', payload.emergency_location)
-    formData.append('photo_location', payload.photo_location)
+    formData.append('photo_location', payload.photoLocation)
     formData.append('is_emergency', payload.is_emergency)
     formData.append('user_id', currentUser?.id || 'anonymous')
     
@@ -1940,11 +1957,15 @@ async function handleEmergencyComplaintSubmit(form) {
       formData.append('evidence_file', emergencyPhoto)
     }
 
+    console.log('Sending request to backend...')
     const res = await fetch('http://localhost:8080/file_complaint.php', {
       method: 'POST',
       body: formData,
       mode: 'cors'
     })
+
+    console.log('Response status:', res.status)
+    console.log('Response OK:', res.ok)
 
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`)
@@ -1956,15 +1977,18 @@ async function handleEmergencyComplaintSubmit(form) {
     let data
     try {
       data = JSON.parse(responseText)
+      console.log('Parsed data:', data)
     } catch (e) {
       console.error('JSON parse error:', e)
       throw new Error('Server returned invalid response: ' + responseText)
     }
 
     if (!data.success) {
+      console.log('Server error:', data.message)
       throw new Error(data.message || 'Failed to file emergency complaint')
     }
 
+    console.log('Success! Preparing success message...')
     let successMessage = `<div class="alert alert-success alert-dismissible">
       <strong><i class="bi bi-check-circle-fill"></i> Emergency Complaint Filed Successfully!</strong><br>
       <strong>Complaint ID:</strong> ${data.complaint_id}<br>
@@ -1985,7 +2009,21 @@ async function handleEmergencyComplaintSubmit(form) {
     
     successMessage += `</div>`
     
-    alertDiv.innerHTML = successMessage
+    console.log('Setting success message to alertDiv...')
+    console.log('AlertDiv before:', alertDiv?.innerHTML)
+    
+    if (alertDiv) {
+      alertDiv.innerHTML = successMessage
+      console.log('AlertDiv after:', alertDiv.innerHTML)
+    } else {
+      console.error('AlertDiv is null or undefined!')
+      // Try to find the alert div by querySelector
+      const fallbackAlert = document.querySelector('#emergencyComplaintAlert')
+      console.log('Fallback alert found:', fallbackAlert)
+      if (fallbackAlert) {
+        fallbackAlert.innerHTML = successMessage
+      }
+    }
     
     // Safe form reset
     try {
@@ -2019,9 +2057,16 @@ async function handleEmergencyComplaintSubmit(form) {
       location.hash = '#/my-complaints'
     }, 3000)
   } catch (error) {
-    alertDiv.innerHTML = `<div class="alert alert-danger alert-dismissible">
+    console.error('Emergency complaint submission error:', error)
+    const errorMessage = `<div class="alert alert-danger alert-dismissible">
       <strong><i class="bi bi-exclamation-triangle-fill"></i> Error:</strong> ${error.message}
     </div>`
+    
+    if (alertDiv) {
+      alertDiv.innerHTML = errorMessage
+    } else {
+      console.error('Cannot display error message - alertDiv not found!')
+    }
   }
 }
 
