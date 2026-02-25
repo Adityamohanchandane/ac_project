@@ -1,109 +1,52 @@
-// Netlify Function for User Login
-const { MongoClient } = require('mongodb');
+const { MongoClient } = require("mongodb");
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://username:password@cluster.mongodb.net/observx?retryWrites=true&w=majority';
-const client = new MongoClient(uri);
+let client;
 
-exports.handler = async (event, context) => {
-  // Enable CORS
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json'
-  };
-
-  // Handle preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ success: false, message: 'Method not allowed' })
-    };
-  }
-
+exports.handler = async (event) => {
   try {
-    const { email, password } = JSON.parse(event.body);
+
+    if (event.httpMethod !== "POST") {
+      return {
+        statusCode: 405,
+        body: JSON.stringify({ error: "Method Not Allowed" })
+      };
+    }
+
+   fetch("/.netlify/functions/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password })
+});
+
+    const data = JSON.parse(event.body);
+    const { email, password } = data;
 
     if (!email || !password) {
       return {
         statusCode: 400,
-        headers,
-        body: JSON.stringify({ success: false, message: 'Email and password are required' })
+        body: JSON.stringify({ error: "Email and password required" })
       };
     }
 
-    await client.connect();
-    const database = client.db('observx');
-    const users = database.collection('users');
-
-    const user = await users.findOne({ email });
-
-    if (!user) {
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({ success: false, message: 'No account found with that email' })
-      };
+    if (!client) {
+      client = new MongoClient(process.env.MONGODB_URI);
+      await client.connect();
     }
 
-    // For demo, simple password check (in production, use bcrypt)
-    if (password === 'adii123' && email === 'adii123@gmail.com') {
-      // Police login
-      if (user.role !== 'police') {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ success: false, message: 'No police account found with that email' })
-        };
-      }
-    } else if (password === 'password' && email === 'test@example.com') {
-      // User login
-      if (user.role !== 'user') {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ success: false, message: 'Access denied' })
-        };
-      }
-    } else {
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ success: false, message: 'Incorrect password' })
-      };
-    }
+    const db = client.db("observeX");
+    const users = db.collection("users");
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
+    await users.insertOne({ email, password });
 
     return {
       statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        message: 'Login successful',
-        user_id: user._id.toString(),
-        user: userWithoutPassword
-      })
+      body: JSON.stringify({ message: "Registration successful" })
     };
 
   } catch (error) {
-    console.error('Login error:', error);
     return {
       statusCode: 500,
-      headers,
-      body: JSON.stringify({ success: false, message: 'Server error' })
+      body: JSON.stringify({ error: error.message })
     };
-  } finally {
-    await client.close();
   }
 };

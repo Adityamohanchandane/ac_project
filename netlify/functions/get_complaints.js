@@ -1,7 +1,7 @@
 // Netlify Function for Getting Complaints
 const { MongoClient } = require('mongodb');
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://username:password@cluster.mongodb.net/observx?retryWrites=true&w=majority';
+const uri = process.env.MONGODB_URI || 'mongodb+srv://adityachandane71_db_user:adityamch2007@observex.fcerr8w.mongodb.net/?appName=observeX';
 const client = new MongoClient(uri);
 
 exports.handler = async (event, context) => {
@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { user_id, user_email } = event.queryStringParameters;
+    const { user_id, user_email } = event.queryStringParameters || {};
 
     await client.connect();
     const database = client.db('observx');
