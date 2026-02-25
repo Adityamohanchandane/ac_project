@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test My Complaints</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Test My Complaints Page</h2>
+        <div id="testResults"></div>
+        
+        <h3 class="mt-4">Direct API Test:</h3>
+        <button onclick="testAPI()" class="btn btn-primary">Test get_complaints.php</button>
+        <div id="apiResults" class="mt-3"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML = '<div class="spinner-border"></div>';
+            
+            try {
+                const response = await fetch('http://localhost/adii/get_complaints.php', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>✅ API Working!</strong><br>
+                            Found ${data.complaints.length} complaints<br>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">❌ API Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="alert alert-danger">❌ Fetch Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Test on page load
+        window.onload = function() {
+            document.getElementById('testResults').innerHTML = `
+                <div class="alert alert-info">
+                    <strong>Page Loaded Successfully</strong><br>
+                    Current URL: ${window.location.href}<br>
+                    User Agent: ${navigator.userAgent}
+                </div>
+            `;
+        };
+    </script>
+</body>
+</html>

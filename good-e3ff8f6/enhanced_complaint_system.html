@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Enhanced Complaint System - ObservX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .complaint-header {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        .system-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        .complaint-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .complaint-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .complaint-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        .emergency-card {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: 2px solid #dc3545;
+        }
+        .normal-card {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border: 2px solid #007bff;
+        }
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .card-description {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        .card-features {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            text-align: left;
+        }
+        .feature-item i {
+            margin-right: 0.5rem;
+            color: #28a745;
+        }
+        .form-container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        .form-section {
+            margin-bottom: 1.5rem;
+        }
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        .required-star {
+            color: #dc3545;
+            margin-left: 0.25rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.25rem rgba(0,123,255,0.1);
+        }
+        .evidence-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        .evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .evidence-upload {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .evidence-upload:hover {
+            background: #e9ecef;
+            border-color: #0056b3;
+        }
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #007bff;
+        }
+        .file-preview {
+            margin-top: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .file-item {
+            background: white;
+            border-radius: 8px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .file-remove {
+            color: #dc3545;
+            cursor: pointer;
+        }
+        .progress-container {
+            margin-top: 2rem;
+        }
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        .btn-submit {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,123,255,0.3);
+        }
+        .btn-emergency {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            animation: pulse 2s infinite;
+        }
+        .btn-emergency:hover {
+            box-shadow: 0 10px 25px rgba(220,53,69,0.4);
+        }
+        .location-input {
+            position: relative;
+        }
+        .location-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+        }
+        .optional-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        .optional-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="complaint-header">
+            <div class="system-title">ObservX Complaint System</div>
+            <p>Choose complaint type and provide detailed information</p>
+        </div>
+
+        <div class="complaint-types">
+            <div class="complaint-card emergency-card" onclick="selectComplaintType('emergency')">
+                <div class="card-icon">🚨</div>
+                <div class="card-title">Emergency Complaint</div>
+                <div class="card-description">For urgent situations requiring immediate response (5-10 minutes)</div>
+                <div class="card-features">
+                    <div class="feature-item">
+                        <i class="bi bi-lightning-fill"></i>
+                        <span>5-10 minute response time</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="bi bi-shield-check"></i>
+                        <span>Critical priority processing</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        <span>GPS location tracking</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="complaint-card normal-card" onclick="selectComplaintType('normal')">
+                <div class="card-icon">📝</div>
+                <div class="card-title">Normal Complaint</div>
+                <div class="card-description">For regular complaints with standard processing time</div>
+                <div class="card-features">
+                    <div class="feature-item">
+                        <i class="bi bi-clock"></i>
+                        <span>Standard processing time</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Full evidence support</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="bi bi-search"></i>
+                        <span>Advanced search options</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="complaintForm" class="form-container" style="display: none;">
+            <form id="complaintFormElement">
+                <input type="hidden" id="complaintType" value="normal">
+                
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="bi bi-person-circle"></i> Personal Information
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" id="fullName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contact Number <span class="required-star">*</span></label>
+                            <input type="tel" class="form-control" id="contactNumber" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="bi bi-geo-alt"></i> Location Information <span class="required-star">*</span>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="location-input">
+                                <input type="text" class="form-control" id="location" placeholder="Enter exact location or address" required>
+                                <button type="button" class="btn btn-outline-secondary location-btn" onclick="getCurrentLocation()">
+                                    <i class="bi bi-crosshair"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">City/Area</label>
+                            <input type="text" class="form-control" id="city" placeholder="e.g., Mumbai, Delhi">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Landmark</label>
+                            <input type="text" class="form-control" id="landmark" placeholder="Nearby landmark or building">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="bi bi-file-text"></i> Complaint Details <span class="required-star">*</span>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Complaint Type <span class="required-star">*</span></label>
+                            <select class="form-select" id="complaintCategory" required>
+                                <option value="">Select Type</option>
+                                <option value="theft">Theft</option>
+                                <option value="fraud">Fraud</option>
+                                <option value="cyber-crime">Cyber Crime</option>
+                                <option value="violence">Violence</option>
+                                <option value="property">Property Damage</option>
+                                <option value="harassment">Harassment</option>
+                                <option value="corruption">Corruption</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" id="priority">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label class="form-label">Description <span class="required-star">*</span></label>
+                            <textarea class="form-control" id="description" rows="4" required placeholder="Describe your complaint in detail..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="evidence-section">
+                    <div class="section-title">
+                        <i class="bi bi-camera"></i> Evidence <span class="required-star">*</span>
+                        <small>Upload photos or videos related to your complaint</small>
+                    </div>
+                    <div class="evidence-grid">
+                        <div class="evidence-upload" onclick="document.getElementById('photoInput').click()">
+                            <div class="upload-icon">📷</div>
+                            <div>Upload Photos</div>
+                            <input type="file" id="photoInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(event, 'photos')">
+                        </div>
+                        <div class="evidence-upload" onclick="document.getElementById('videoInput').click()">
+                            <div class="upload-icon">🎥</div>
+                            <div>Upload Videos</div>
+                            <input type="file" id="videoInput" accept="video/*" multiple style="display: none;" onchange="handleFileSelect(event, 'videos')">
+                        </div>
+                    </div>
+                    <div id="filePreview" class="file-preview"></div>
+                </div>
+
+                <div class="optional-section">
+                    <div class="optional-title">
+                        <i class="bi bi-info-circle"></i> Additional Information (Optional)
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Incident Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="incidentDateTime">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Witnesses</label>
+                            <input type="text" class="form-control" id="witnesses" placeholder="Names of any witnesses">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label class="form-label">Additional Details</label>
+                            <textarea class="form-control" id="additionalDetails" rows="3" placeholder="Any other relevant information..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress">
+                        <div class="progress-bar" id="submissionProgress" style="width: 0%"></div>
+                    </div>
+                    <small class="text-muted">Uploading evidence and submitting complaint...</small>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-submit" id="submitBtn">
+                        <i class="bi bi-send-fill"></i> Submit Complaint
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset Form
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let selectedType = 'normal';
+        let uploadedFiles = {
+            photos: [],
+            videos: []
+        };
+
+        function selectComplaintType(type) {
+            selectedType = type;
+            const form = document.getElementById('complaintForm');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Show form
+            form.style.display = 'block';
+            
+            // Update form based on type
+            if (type === 'emergency') {
+                submitBtn.className = 'btn btn-submit btn-emergency';
+                submitBtn.innerHTML = '<i class="bi bi-lightning-fill"></i> Submit Emergency Complaint';
+                
+                // Set priority to high for emergency
+                document.getElementById('priority').value = 'high';
+                
+                // Scroll to form
+                form.scrollIntoView({ behavior: 'smooth' });
+                
+                // Auto-set emergency type
+                setTimeout(() => {
+                    document.getElementById('complaintCategory').value = 'other';
+                    document.getElementById('description').value = 'EMERGENCY: Please describe the emergency situation in detail';
+                }, 500);
+            } else {
+                submitBtn.className = 'btn btn-submit';
+                submitBtn.innerHTML = '<i class="bi bi-send-fill"></i> Submit Complaint';
+            }
+        }
+
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        document.getElementById('location').value = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                    },
+                    (error) => {
+                        alert('Unable to get GPS location. Please enter location manually.');
+                    }
+                );
+            } else {
+                alert('GPS not supported by your browser. Please enter location manually.');
+            }
+        }
+
+        function handleFileSelect(event, type) {
+            const files = Array.from(event.target.files);
+            uploadedFiles[type] = uploadedFiles[type].concat(files);
+            displayFilePreview();
+        }
+
+        function displayFilePreview() {
+            const preview = document.getElementById('filePreview');
+            const allFiles = [...uploadedFiles.photos, ...uploadedFiles.videos];
+            
+            if (allFiles.length === 0) {
+                preview.innerHTML = '<p class="text-muted">No files uploaded</p>';
+                return;
+            }
+            
+            let html = '';
+            allFiles.forEach((file, index) => {
+                const isVideo = file.type.startsWith('video/');
+                const icon = isVideo ? '🎥' : '📷';
+                const size = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+                
+                html += `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <span>${icon}</span>
+                            <span>${file.name}</span>
+                            <span class="text-muted">(${size})</span>
+                        </div>
+                        <i class="bi bi-x-circle file-remove" onclick="removeFile(${index}, '${type === 'photos' ? 'photos' : 'videos'}')"></i>
+                    </div>
+                `;
+            });
+            
+            preview.innerHTML = html;
+        }
+
+        function removeFile(index, type) {
+            uploadedFiles[type].splice(index, 1);
+            displayFilePreview();
+        }
+
+        function resetForm() {
+            document.getElementById('complaintFormElement').reset();
+            uploadedFiles = { photos: [], videos: [] };
+            displayFilePreview();
+            document.getElementById('submissionProgress').style.width = '0%';
+        }
+
+        // Form submission
+        document.getElementById('complaintFormElement').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                type: selectedType,
+                fullName: document.getElementById('fullName').value,
+                contactNumber: document.getElementById('contactNumber').value,
+                location: document.getElementById('location').value,
+                city: document.getElementById('city').value,
+                landmark: document.getElementById('landmark').value,
+                complaintCategory: document.getElementById('complaintCategory').value,
+                priority: document.getElementById('priority').value,
+                description: document.getElementById('description').value,
+                incidentDateTime: document.getElementById('incidentDateTime').value,
+                witnesses: document.getElementById('witnesses').value,
+                additionalDetails: document.getElementById('additionalDetails').value,
+                evidence: {
+                    photos: uploadedFiles.photos,
+                    videos: uploadedFiles.videos
+                },
+                timestamp: new Date().toISOString()
+            };
+            
+            // Validate required fields
+            const requiredFields = ['fullName', 'contactNumber', 'location', 'complaintCategory', 'description'];
+            const missingFields = requiredFields.filter(field => !formData[field]);
+            
+            if (missingFields.length > 0) {
+                alert('Please fill in all required fields: ' + missingFields.join(', '));
+                return;
+            }
+            
+            // Validate evidence
+            if (uploadedFiles.photos.length === 0 && uploadedFiles.videos.length === 0) {
+                alert('Please upload at least one photo or video as evidence');
+                return;
+            }
+            
+            // Show progress
+            const progressBar = document.getElementById('submissionProgress');
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            
+            // Simulate upload progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = progress + '%';
+                if (progress >= 90) {
+                    clearInterval(progressInterval);
+                }
+            }, 200);
+            
+            try {
+                // Simulate API call
+                await submitComplaint(formData);
+                
+                // Complete progress
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    alert(`${selectedType === 'emergency' ? 'Emergency' : 'Normal'} complaint submitted successfully!\n\nReference ID: CMP${Date.now()}\n\n${selectedType === 'emergency' ? 'Response time: 5-10 minutes' : 'Standard processing time'}`);
+                    resetForm();
+                }, 1000);
+                
+            } catch (error) {
+                clearInterval(progressInterval);
+                submitBtn.disabled = false;
+                progressBar.style.width = '0%';
+                alert('Submission failed: ' + error.message);
+            }
+        });
+
+        async function submitComplaint(data) {
+            try {
+                const response = await fetch('http://localhost/adii/enhanced_complaint_api.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data),
+                    mode: 'cors'
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.message || 'Complaint submission failed');
+                }
+                
+                console.log('Complaint submitted:', result);
+                return result;
+                
+            } catch (error) {
+                console.error('Complaint submission error:', error);
+                throw error;
+            }
+        }
+    </script>
+</body>
+</html>

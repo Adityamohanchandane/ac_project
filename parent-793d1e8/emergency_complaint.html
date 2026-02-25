@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Emergency Complaint - ObservX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .emergency-header {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .emergency-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #ff6b6b;
+        }
+        .emergency-subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+        .timer {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 1rem;
+        }
+        .timer-warning {
+            color: #ffc107;
+        }
+        .timer-danger {
+            color: #dc3545;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            margin-bottom: 1.5rem;
+            background: rgba(255,255,255,0.95);
+        }
+        .card-header {
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+        .btn-emergency {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-emergency:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(220,53,69,0.3);
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-active { background: #28a745; }
+        .status-pending { background: #ffc107; }
+        .status-resolved { background: #17a2b8; }
+        .priority-high { 
+            border: 2px solid #dc3545; 
+            background: rgba(220,53,69,0.1);
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220,53,69,0.1);
+        }
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .quick-btn {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .quick-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+        .progress-container {
+            margin-top: 2rem;
+        }
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        .live-status {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emergency-header">
+            <div class="emergency-title">
+                <i class="bi bi-exclamation-triangle-fill"></i> EMERGENCY COMPLAINT
+            </div>
+            <div class="emergency-subtitle">Immediate Response • 5-10 Minutes Resolution</div>
+            <div class="timer" id="responseTimer">00:00</div>
+            <div class="text-white-50">
+                <small>⚡ Average response time: 7.5 minutes</small>
+            </div>
+        </div>
+
+        <div class="live-status">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="status-indicator status-active"></div>
+                        <strong>Active</strong>
+                        <div class="text-white-50">System Ready</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="status-indicator status-pending"></div>
+                        <strong>Pending</strong>
+                        <div class="text-white-50" id="pendingCount">0</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="status-indicator status-resolved"></div>
+                        <strong>Resolved</strong>
+                        <div class="text-white-50" id="resolvedCount">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <div class="quick-btn" onclick="quickEmergency('medical')">
+                <i class="bi bi-heart-pulse-fill" style="font-size: 2rem;"></i>
+                <div>Medical Emergency</div>
+                <small>Ambulance • Police</small>
+            </div>
+            <div class="quick-btn" onclick="quickEmergency('accident')">
+                <i class="bi bi-car-crash-fill" style="font-size: 2rem;"></i>
+                <div>Accident</div>
+                <small>Road • Vehicle</small>
+            </div>
+            <div class="quick-btn" onclick="quickEmergency('crime')">
+                <i class="bi bi-shield-fill-exclamation" style="font-size: 2rem;"></i>
+                <div>Crime in Progress</div>
+                <small>Theft • Assault</small>
+            </div>
+            <div class="quick-btn" onclick="quickEmergency('fire')">
+                <i class="bi bi-fire-fill" style="font-size: 2rem;"></i>
+                <div>Fire Emergency</div>
+                <small>Building • Forest</small>
+            </div>
+        </div>
+
+        <div class="card priority-high">
+            <div class="card-header text-white">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> File Emergency Complaint</h4>
+            </div>
+            <div class="card-body">
+                <form id="emergencyForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Emergency Type *</label>
+                            <select class="form-select" id="emergencyType" required>
+                                <option value="">Select Emergency Type</option>
+                                <option value="medical">🏥 Medical Emergency</option>
+                                <option value="accident">🚗 Accident</option>
+                                <option value="crime">🛡️ Crime in Progress</option>
+                                <option value="fire">🔥 Fire Emergency</option>
+                                <option value="theft">💰 Theft/Robbery</option>
+                                <option value="assault">⚠️ Assault/Violence</option>
+                                <option value="missing">👤 Missing Person</option>
+                                <option value="disaster">🌪 Natural Disaster</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Priority Level</label>
+                            <select class="form-select" id="priorityLevel">
+                                <option value="critical">🔴 CRITICAL - Life Threatening</option>
+                                <option value="high">🟠 HIGH - Serious Harm</option>
+                                <option value="urgent">🟡 URGENT - Immediate Action</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Your Location *</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-geo-alt-fill"></i></span>
+                                <input type="text" class="form-control" id="location" placeholder="Enter exact location or use GPS" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="getCurrentLocation()">
+                                    <i class="bi bi-crosshair"></i> GPS
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Emergency Description *</label>
+                            <textarea class="form-control" id="emergencyDescription" rows="4" 
+                                placeholder="Describe the emergency situation in detail. What happened? Who is involved? Immediate dangers?" required></textarea>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Contact Number *</label>
+                            <input type="tel" class="form-control" id="contactNumber" placeholder="Your mobile number" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Victims Count</label>
+                            <input type="number" class="form-control" id="victimsCount" placeholder="How many people affected?" min="1">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Additional Information</label>
+                            <textarea class="form-control" id="additionalInfo" rows="2" 
+                                placeholder="Any other important details (weapons, injuries, immediate threats, etc.)"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" id="submissionProgress" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">Emergency submission priority: <span id="priorityText">CRITICAL</span></small>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-emergency btn-lg text-white">
+                            <i class="bi bi-send-fill"></i> 
+                            SUBMIT EMERGENCY COMPLAINT
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="local_complaints.html" class="btn btn-outline-light">
+                <i class="bi bi-arrow-left"></i> Back to Normal Complaints
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let startTime = null;
+        let timerInterval = null;
+        let emergencyStats = {
+            active: 0,
+            pending: 0,
+            resolved: 0
+        };
+
+        // Initialize
+        window.onload = function() {
+            startTimer();
+            updateLiveStats();
+            updatePriorityText();
+        };
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if (!startTime) return;
+            
+            const elapsed = Date.now() - startTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            const timerElement = document.getElementById('responseTimer');
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            timerElement.textContent = timeString;
+            
+            // Change color based on time
+            timerElement.className = 'timer';
+            if (minutes >= 8) {
+                timerElement.classList.add('timer-danger');
+            } else if (minutes >= 5) {
+                timerElement.classList.add('timer-warning');
+            }
+        }
+
+        async function updateLiveStats() {
+            try {
+                const response = await fetch('http://localhost/adii/emergency_complaint_simple.php', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.stats;
+                    document.getElementById('pendingCount').textContent = stats.active_emergencies;
+                    document.getElementById('resolvedCount').textContent = stats.resolved_emergencies;
+                    
+                    // Update emergency stats object
+                    emergencyStats.pending = stats.active_emergencies;
+                    emergencyStats.resolved = stats.resolved_emergencies;
+                    
+                    console.log('Emergency stats updated:', stats);
+                }
+            } catch (error) {
+                console.error('Failed to fetch emergency stats:', error);
+                // Fallback to simulated stats
+                document.getElementById('pendingCount').textContent = emergencyStats.pending;
+                document.getElementById('resolvedCount').textContent = emergencyStats.resolved;
+            }
+        }
+
+        function updatePriorityText() {
+            const priority = document.getElementById('priorityLevel').value;
+            const priorityText = document.getElementById('priorityText');
+            
+            switch(priority) {
+                case 'critical':
+                    priorityText.textContent = 'CRITICAL - Immediate Response';
+                    break;
+                case 'high':
+                    priorityText.textContent = 'HIGH - Priority Response';
+                    break;
+                case 'urgent':
+                    priorityText.textContent = 'URGENT - Fast Response';
+                    break;
+                default:
+                    priorityText.textContent = 'CRITICAL - Immediate Response';
+            }
+        }
+
+        function quickEmergency(type) {
+            const form = document.getElementById('emergencyForm');
+            const typeSelect = document.getElementById('emergencyType');
+            const description = document.getElementById('emergencyDescription');
+            
+            // Pre-fill based on emergency type
+            switch(type) {
+                case 'medical':
+                    typeSelect.value = 'medical';
+                    description.value = 'Medical emergency requiring immediate ambulance assistance. Person needs urgent medical attention.';
+                    break;
+                case 'accident':
+                    typeSelect.value = 'accident';
+                    description.value = 'Vehicle accident occurred with potential injuries. Need immediate police and medical response.';
+                    break;
+                case 'crime':
+                    typeSelect.value = 'crime';
+                    description.value = 'Crime in progress - immediate police intervention required. Suspect still at scene.';
+                    break;
+                case 'fire':
+                    typeSelect.value = 'fire';
+                    description.value = 'Fire emergency reported. Building/area on fire. Need immediate fire department response.';
+                    break;
+            }
+            
+            // Scroll to form
+            form.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        document.getElementById('location').value = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                    },
+                    (error) => {
+                        alert('Unable to get GPS location. Please enter location manually.');
+                    }
+                );
+            } else {
+                alert('GPS not supported by your browser. Please enter location manually.');
+            }
+        }
+
+        // Form submission
+        document.getElementById('emergencyForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                emergencyType: document.getElementById('emergencyType').value,
+                priority: document.getElementById('priorityLevel').value,
+                location: document.getElementById('location').value,
+                description: document.getElementById('emergencyDescription').value,
+                contactNumber: document.getElementById('contactNumber').value,
+                victimsCount: document.getElementById('victimsCount').value,
+                additionalInfo: document.getElementById('additionalInfo').value,
+                timestamp: new Date().toISOString(),
+                isEmergency: true
+            };
+
+            // Show progress
+            updateSubmissionProgress(25);
+            
+            try {
+                // Simulate emergency submission
+                await submitEmergencyComplaint(formData);
+                updateSubmissionProgress(100);
+                
+                // Show success
+                showEmergencySuccess();
+                
+                // Update stats
+                emergencyStats.pending++;
+                updateLiveStats();
+                
+                // Reset timer
+                setTimeout(() => {
+                    startTime = Date.now();
+                }, 2000);
+                
+            } catch (error) {
+                updateSubmissionProgress(0);
+                alert('Emergency submission failed: ' + error.message);
+            }
+        });
+
+        async function submitEmergencyComplaint(data) {
+            try {
+                const response = await fetch('http://localhost/adii/emergency_complaint_simple.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data),
+                    mode: 'cors'
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.message || 'Emergency submission failed');
+                }
+                
+                console.log('Emergency complaint submitted:', result);
+                return result;
+                
+            } catch (error) {
+                console.error('Emergency submission error:', error);
+                throw error;
+            }
+        }
+
+        function updateSubmissionProgress(percent) {
+            const progressBar = document.getElementById('submissionProgress');
+            progressBar.style.width = percent + '%';
+        }
+
+        function showEmergencySuccess() {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'position-fixed top-0 start-0 end-0 p-3';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-check-circle-fill me-3" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h5 class="alert-heading">Emergency Complaint Submitted!</h5>
+                            <p class="mb-0"><strong>Response Time: 5-10 minutes</strong></p>
+                            <p class="mb-0">Emergency services have been notified. Keep your phone available.</p>
+                            <small>Complaint ID: EMG${Date.now()}</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // Auto remove after 10 seconds
+            setTimeout(() => {
+                if (alertDiv.parentElement) {
+                    alertDiv.remove();
+                }
+            }, 10000);
+        }
+
+        // Priority level change listener
+        document.getElementById('priorityLevel').addEventListener('change', updatePriorityText);
+    </script>
+</body>
+</html>
