@@ -9,10 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "express": "^5.2.1",
-    "multer": "^2.0.2",
-    "node-fetch": "^3.3.2",
     "mongodb": "^6.3.0"
   },
   "devDependencies": {

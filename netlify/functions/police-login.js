@@ -1,10 +1,10 @@
 // Netlify Function for Police Login
-import { MongoClient } from 'mongodb';
+const { MongoClient } = require('mongodb');
 
 const uri = process.env.MONGODB_URI || 'mongodb+srv://username:password@cluster.mongodb.net/observx?retryWrites=true&w=majority';
 const client = new MongoClient(uri);
 
-export const handler = async (event, context) => {
+exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
