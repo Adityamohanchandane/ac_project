@@ -1,56 +1,23 @@
-import './style.css?v=2.0'
-// Version: 2.0 - Force Refresh Update
-console.log('🔄 ObservX v2.0 - Loading with force refresh...');
-
-// Ensure Supabase client is available in the browser environment.
-// Using the ESM bundle served by jsDelivr so `createClient` is defined.
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-
 // Initialize Supabase if env vars are present; otherwise use null-safe stub
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || null
+const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || null
 let supabase = null
-try {
-  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  }
-} catch (e) {
-  console.error('Failed to initialize Supabase client:', e)
-  supabase = null
-}
 
-// Global variable to control complaint forms visibility
-let showComplaintForms = true
-
-// Function to toggle complaint forms visibility
-function toggleComplaintForms() {
-  showComplaintForms = !showComplaintForms
-  
-  // Update routes based on toggle state
-  if (showComplaintForms) {
-    pages['file-complaint'] = renderFileComplaint
-    pages['emergency-complaint'] = renderEmergencyComplaint
-  } else {
-    pages['file-complaint'] = () => '<div class="container mt-5"><div class="alert alert-warning">Complaint forms are currently disabled.</div></div>'
-    pages['emergency-complaint'] = () => '<div class="container mt-5"><div class="alert alert-warning">Emergency complaint forms are currently disabled.</div></div>'
+// Only initialize if explicitly configured and available
+if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof createClient !== 'undefined') {
+  try {
+    // Dynamic import to avoid errors if not available
+    import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm').then(({ createClient }) => {
+      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    }).catch(e => {
+      console.warn('Supabase not available:', e)
+    })
+  } catch (e) {
+    console.warn('Failed to initialize Supabase client:', e)
+    supabase = null
   }
-  
-  // Reload current page if on complaint form
-  const currentRoute = location.hash.slice(2) || 'home'
-  if (currentRoute === 'file-complaint' || currentRoute === 'emergency-complaint') {
-    loadPage(currentRoute)
-  }
-  
-  // Update dashboard buttons
-  if (currentUser || currentUserRole === 'user') {
-    const dashboardContent = renderUserDashboard()
-    const content = document.getElementById('content')
-    if (content && currentRoute === 'user-dashboard') {
-      content.innerHTML = dashboardContent
-    }
-  }
-  
-  return showComplaintForms
+} else {
+  console.warn('Supabase not configured — continuing without Supabase')
 }
 
 // Global state
@@ -93,8 +60,8 @@ const initLoader = () => {
 }
 
 // Initialize scroll animations
-// Backend base URL detection: when running from a dev server (non-Apache port)
-const backendBase = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port && window.location.port !== '80') ? `http://${window.location.hostname}` : '';
+// Backend base URL - auto-detect for deployment
+const backendBase = window.location.origin;
 
 const initScrollAnimations = () => {
   const animateOnScroll = () => {
@@ -214,7 +181,7 @@ async function checkAuth() {
   if (!supabase) {
     // Use PHP session check instead of Supabase
     try {
-      const res = await fetch('http://localhost:8080/check_auth.php', {
+      const res = await fetch(`${backendBase}/check_auth.php`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
@@ -246,22 +213,17 @@ async function checkAuth() {
     if (data.session) {
       currentUser = data.session.user
       
-      // Fetch user role (only if Supabase is available)
-      if (supabase) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('role, full_name, avatar_url')
-          .eq('id', currentUser.id)
-          .maybeSingle()
-          
-        if (userError) throw userError
+      // Fetch user role
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role, full_name, avatar_url')
+        .eq('id', currentUser.id)
+        .maybeSingle()
         
-        currentUserRole = userData?.role || 'user'
-        currentUser = { ...currentUser, ...userData }
-      } else {
-        // Use PHP session fallback for role
-        currentUserRole = 'user'
-      }
+      if (userError) throw userError
+      
+      currentUserRole = userData?.role || 'user'
+      currentUser = { ...currentUser, ...userData }
       
       updateAuthMenu()
       
@@ -395,61 +357,6 @@ async function loadPage(route) {
             } finally {
               captureBtn.disabled = false
               captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture'
-            }
-          })
-        }
-      }
-      
-      // Attach emergency location capture button listener if on emergency complaint page
-      if (route === 'emergency-complaint') {
-        const captureBtn = document.getElementById('captureEmergencyLocation')
-        if (captureBtn) {
-          captureBtn.addEventListener('click', async (e) => {
-            e.preventDefault()
-            captureBtn.disabled = true
-            captureBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...'
-            
-            try {
-              const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                  enableHighAccuracy: true,
-                  timeout: 10000,
-                  maximumAge: 0
-                })
-              })
-              
-              const { latitude, longitude } = position.coords
-              const locationInput = document.getElementById('emergencyLocation')
-              locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
-              locationInput.setAttribute('data-location', JSON.stringify({
-                lat: latitude,
-                lng: longitude,
-                captured_at: new Date().toISOString()
-              }))
-              
-              captureBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured'
-              captureBtn.classList.remove('btn-info')
-              captureBtn.classList.add('btn-success')
-              
-              setTimeout(() => {
-                captureBtn.disabled = false
-                captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture'
-                captureBtn.classList.remove('btn-success')
-                captureBtn.classList.add('btn-info')
-              }, 2000)
-              
-            } catch (error) {
-              console.error('Emergency location capture failed:', error)
-              captureBtn.innerHTML = '<i class="bi bi-x-circle"></i> Failed'
-              captureBtn.classList.remove('btn-info')
-              captureBtn.classList.add('btn-outline-danger')
-              
-              setTimeout(() => {
-                captureBtn.disabled = false
-                captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture'
-                captureBtn.classList.remove('btn-outline-danger')
-                captureBtn.classList.add('btn-info')
-              }, 2000)
             }
           })
         }
@@ -692,52 +599,23 @@ function renderUserLogin() {
   }
 
   return `
-    <div class="container mt-5">
-      <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4">
-          <div class="card shadow">
-            <div class="card-body p-4">
-              <div class="text-center mb-4">
-                <div class="badge bg-success text-white p-2 mb-3">
-                  <i class="bi bi-person-check me-2"></i>CITIZEN LOGIN
-                </div>
-                <h3 class="card-title">Welcome Back</h3>
-                <p class="text-muted small">Login to file and track complaints</p>
-              </div>
-              
-              <form id="loginForm">
-                <div class="mb-3">
-                  <label for="loginEmail" class="form-label">Email Address</label>
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                    <input type="email" class="form-control" id="loginEmail" placeholder="Enter your email" required>
-                  </div>
-                </div>
-                
-                <div class="mb-3">
-                  <label for="loginPassword" class="form-label">Password</label>
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                    <input type="password" class="form-control" id="loginPassword" placeholder="Enter your password" required>
-                  </div>
-                </div>
-                
-                <div id="loginAlert"></div>
-                
-                <div class="d-grid">
-                  <button type="submit" class="btn btn-success btn-lg">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Login
-                  </button>
-                </div>
-              </form>
-              
-              <div class="text-center mt-4 pt-3 border-top">
-                <p class="mb-2">Don't have an account? <a href="#/user-register" class="text-decoration-none">Register here</a></p>
-                <p class="mb-0"><small>Police Officer? <a href="#/police-login" class="text-decoration-none">Login here</a></small></p>
-              </div>
-            </div>
+    <div class="login-container">
+      <div class="login-card">
+        <h2><i class="bi bi-person-check"></i> Citizen Login</h2>
+        <form id="loginForm">
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="loginEmail" required>
           </div>
-        </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" id="loginPassword" required>
+          </div>
+          <div id="loginAlert"></div>
+          <button type="submit" class="btn btn-primary w-100">Login</button>
+        </form>
+        <p class="text-center mt-3">Don't have an account? <a href="#/user-register">Register here</a></p>
+        <p class="text-center"><small>Police Officer? <a href="#/police-login">Login here</a></small></p>
       </div>
     </div>
   `
@@ -749,62 +627,25 @@ function renderPoliceLogin() {
   }
 
   return `
-    <div class="container mt-5">
-      <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4">
-          <div class="card shadow">
-            <div class="card-body p-4">
-              <div class="text-center mb-4">
-                <div class="badge bg-primary text-white p-2 mb-3">
-                  <i class="bi bi-shield-lock me-2"></i>POLICE PORTAL
-                </div>
-                <h3 class="card-title">Police Admin Login</h3>
-                <p class="text-muted small">Authorized personnel only</p>
-              </div>
-              
-              <div class="alert alert-info mb-3">
-                <small><i class="bi bi-info-circle me-2"></i>This portal is exclusively for authorized police officers only.</small>
-              </div>
-              
-              <div class="alert alert-success mb-3">
-                <small><strong><i class="bi bi-key me-2"></i>Test Credentials:</strong><br>
-                📧 Email: police@observx.com<br>
-                🔑 Password: police123</small>
-              </div>
-              
-              <form id="policeLoginForm">
-                <div class="mb-3">
-                  <label for="policeEmail" class="form-label">Police Email ID</label>
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                    <input type="email" class="form-control" id="policeEmail" placeholder="police@observx.com" value="police@observx.com" required>
-                  </div>
-                </div>
-                
-                <div class="mb-3">
-                  <label for="policePassword" class="form-label">Password</label>
-                  <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                    <input type="password" class="form-control" id="policePassword" placeholder="police123" value="police123" required>
-                  </div>
-                </div>
-                
-                <div id="policeLoginAlert"></div>
-                
-                <div class="d-grid">
-                  <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-shield-check me-2"></i>Login to Portal
-                  </button>
-                </div>
-              </form>
-              
-              <div class="text-center mt-4 pt-3 border-top">
-                <p class="text-muted small mb-0">For access issues, contact your administrator</p>
-                <p class="mb-0"><a href="#/" class="text-decoration-none">← Back to Home</a></p>
-              </div>
-            </div>
-          </div>
+    <div class="login-container">
+      <div class="login-card">
+        <h2><i class="bi bi-shield-check"></i> Police Login</h2>
+        <div class="alert alert-info mb-3">
+          <small>This portal is exclusively for authorized police officers only.</small>
         </div>
+        <form id="policeLoginForm">
+          <div class="mb-3">
+            <label class="form-label">Police Email ID</label>
+            <input type="email" class="form-control" id="policeEmail" placeholder="officer@secureindiapolice.gov.in" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" id="policePassword" required>
+          </div>
+          <div id="policeLoginAlert"></div>
+          <button type="submit" class="btn btn-secondary w-100">Login</button>
+        </form>
+        <p class="text-center mt-3"><a href="#/">Back to Home</a></p>
       </div>
     </div>
   `
@@ -836,60 +677,352 @@ async function getUserLocation() {
   })
 }
 
-
-function renderUserDashboard() {
-  // Temporarily remove login requirement for testing
-  // if (!currentUser || currentUserRole === 'police') {
-  //   return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access. <a href="#/user-login">Login here</a></div></div>`
-  // }
-  
-  // Use mock user data for testing
-  const mockUser = currentUser || { email: 'test@example.com' };
-  const mockUserRole = currentUserRole || 'user';
+function renderFileComplaint() {
+  if (!currentUser || currentUserRole === 'police') {
+    return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
+  }
 
   return `
     <div class="container">
-      <div class="dashboard-header d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2>Welcome, ${mockUser.email}</h2>
-          <p class="mb-0">Citizen Dashboard</p>
-        </div>
-        <div>
-          <a href="#/emergency-complaint" class="btn btn-danger btn-lg me-2">
-            <i class="bi bi-exclamation-triangle-fill"></i> Emergency Complaint
-          </a>
-          <a href="#/file-complaint" class="btn btn-primary btn-lg">
-            <i class="bi bi-file-earmark-plus"></i> Normal Complaint
-          </a>
-        </div>
-      </div>
-
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <div class="stat-box">
-            <div class="number" id="totalComplaints">-</div>
-            <div class="label">Total Complaints</div>
+      <div class="row">
+        <div class="col-lg-8 mx-auto">
+          <div class="form-section">
+            <h2><i class="bi bi-file-earmark-text"></i> Normal Complaint</h2>
+            <form id="complaintForm">
+              <div class="mb-3">
+                <label class="form-label">Complaint Title <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="complaintTitle" placeholder="Brief title of your complaint" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Category <span class="text-danger">*</span></label>
+                <select class="form-select" id="category" required>
+                  <option value="">Select a category</option>
+                  <option value="theft">Theft & Robbery</option>
+                  <option value="cyber-crime">Cyber Crime</option>
+                  <option value="missing-person">Missing Person</option>
+                  <option value="violence">Violence & Harassment</option>
+                  <option value="fraud">Fraud & Forgery</option>
+                  <option value="property">Property Damage</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Incident Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="incidentDate" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Your Current Location (Auto-captured) <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="userLocation" placeholder="Waiting for GPS..." readonly>
+                  <button class="btn btn-outline-secondary" type="button" id="captureUserLocation">
+                    <i class="bi bi-geo-alt"></i> Capture
+                  </button>
+                </div>
+                <small class="text-muted">Your current location will be recorded for verification</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Crime Location (Where incident happened) <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="crimeLocation" placeholder="Address or location of incident" required>
+                <small class="text-muted">Optional: Provide GPS coordinates (latitude, longitude)</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Description <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="description" rows="5" placeholder="Provide detailed information about the incident" required></textarea>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Upload Evidence (Optional)</label>
+                <input type="file" class="form-control" id="evidenceFile" accept=".pdf,.jpg,.jpeg,.png,.mp4,.gif">
+                <small class="text-muted">Accepted: PDF, JPG, PNG, MP4, GIF (Max 10MB)</small>
+              </div>
+              <div id="complaintAlert"></div>
+              <button type="submit" class="btn btn-primary w-100">Submit Complaint</button>
+            </form>
           </div>
         </div>
-        <div class="col-md-6">
-          <div class="stat-box">
-            <div class="number" id="resolvedCount">-</div>
-            <div class="label">Resolved</div>
-          </div>
-        </div>
-      </div>
-
-      <h3 class="mb-3">Your Recent Complaints</h3>
-      <div id="complaintsContainer" class="mb-4">
-        <div class="loading">
-          <div class="spinner-border" role="status"></div>
-        </div>
-      </div>
-
-      <div class="text-center">
-        <a href="#/my-complaints" class="btn btn-outline-primary">View All Complaints</a>
       </div>
     </div>
+  `
+}
+
+function renderUserDashboard() {
+  if (!currentUser || currentUserRole === 'police') {
+    return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access. <a href="#/user-login">Login here</a></div></div>`
+  }
+
+  return `
+    <style>
+      .gov-dashboard {
+        background-color: #f8f9fa;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      .gov-header {
+        background-color: #1a365d;
+        color: white;
+        padding: 20px 0;
+        border-bottom: 3px solid #2c5282;
+      }
+      .gov-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .gov-logo-icon {
+        width: 40px;
+        height: 40px;
+        background-color: #2c5282;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 18px;
+      }
+      .gov-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0;
+      }
+      .gov-subtitle {
+        font-size: 14px;
+        opacity: 0.9;
+        margin: 0;
+      }
+      .welcome-section {
+        background-color: white;
+        padding: 20px;
+        margin: 20px 0;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+      }
+      .stat-card {
+        background-color: white;
+        padding: 20px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+      .stat-number {
+        font-size: 32px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 8px;
+      }
+      .stat-label {
+        font-size: 14px;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .complaints-section {
+        background-color: white;
+        padding: 20px;
+        margin: 20px 0;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+      }
+      .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 16px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 8px;
+      }
+      .complaints-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+      .complaints-table th {
+        background-color: #f7fafc;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #4a5568;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 14px;
+      }
+      .complaints-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 14px;
+      }
+      .complaints-table tr:hover {
+        background-color: #f7fafc;
+      }
+      .status-badge {
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+      .status-pending {
+        background-color: #fef5e7;
+        color: #d69e2e;
+        border: 1px solid #f6e05e;
+      }
+      .status-resolved {
+        background-color: #f0fff4;
+        color: #38a169;
+        border: 1px solid #9ae6b4;
+      }
+      .status-rejected {
+        background-color: #fff5f5;
+        color: #e53e3e;
+        border: 1px solid #feb2b2;
+      }
+      .action-buttons {
+        display: flex;
+        gap: 12px;
+        margin: 20px 0;
+      }
+      .btn-primary {
+        background-color: #2c5282;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-primary:hover {
+        background-color: #2a4e7c;
+        text-decoration: none;
+        color: white;
+      }
+      .btn-outline {
+        background-color: transparent;
+        color: #2c5282;
+        padding: 10px 20px;
+        border: 1px solid #2c5282;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-outline:hover {
+        background-color: #2c5282;
+        text-decoration: none;
+        color: white;
+      }
+      .btn-danger {
+        background-color: #c53030;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-danger:hover {
+        background-color: #b91c1c;
+        text-decoration: none;
+        color: white;
+      }
+      .btn-outline {
+        background-color: white;
+        color: #2c5282;
+        padding: 8px 16px;
+        border: 1px solid #2c5282;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .btn-outline:hover {
+        background-color: #2c5282;
+        color: white;
+        text-decoration: none;
+      }
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #718096;
+      }
+    </style>
+
+    <div class="gov-dashboard">
+      <!-- Header -->
+      <div class="gov-header">
+        <div class="container">
+          <div class="gov-logo">
+            <div class="gov-logo-icon">OX</div>
+            <div>
+              <div class="gov-title">ObservX Citizen Portal</div>
+              <div class="gov-subtitle">Ministry of Public Safety & Justice</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container">
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+          <h3 style="margin: 0 0 8px 0; color: #2d3748;">Welcome, ${currentUser.email}</h3>
+          <p style="margin: 0; color: #718096;">Citizen Services Dashboard</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <a href="#/file-complaint" class="btn-primary">
+            <i class="bi bi-file-earmark-plus"></i> Normal Complaint
+          </a>
+          <a href="#/emergency-complaint" class="btn-danger">
+            <i class="bi bi-exclamation-triangle"></i> Emergency Complaint
+          </a>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" id="totalComplaints">-</div>
+            <div class="stat-label">Total Complaints</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="resolvedCount">-</div>
+            <div class="stat-label">Resolved Complaints</div>
+          </div>
+        </div>
+
+        <!-- Recent Complaints -->
+        <div class="complaints-section">
+          <div class="section-title">Recent Complaints</div>
+          <div id="complaintsContainer">
+            <div class="loading">Loading complaints...</div>
+          </div>
+        </div>
+
+        <!-- View All Button -->
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="#/my-complaints" class="btn-outline">View All Complaints</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Load dashboard complaints after render
+      setTimeout(() => {
+        loadDashboardComplaints();
+        loadDashboardStats();
+      }, 500);
+    </script>
   `
 }
 
@@ -946,7 +1079,13 @@ async function loadUserComplaints() {
   if (!container) return
   
   try {
-    const res = await fetch('http://localhost:8080/get_complaints.php', {
+    // Filter by current user's email
+    const userEmail = currentUser?.email;
+    const url = userEmail 
+      ? `${backendBase}/get_complaints.php?user_email=${encodeURIComponent(userEmail)}`
+      : `${backendBase}/get_complaints.php`;
+    
+    const res = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
@@ -1041,6 +1180,339 @@ window.viewComplaint = function(complaintId) {
   location.hash = `#/view-complaint?id=${complaintId}`
 }
 
+// Dashboard-specific functions
+async function loadDashboardComplaints() {
+  const container = document.getElementById('complaintsContainer');
+  if (!container) return;
+  
+  try {
+    // Filter by current user's email
+    const userEmail = currentUser?.email;
+    const url = userEmail 
+      ? `${backendBase}/get_complaints.php?user_email=${encodeURIComponent(userEmail)}`
+      : `${backendBase}/get_complaints.php`;
+    
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors'
+    });
+    
+    const data = await res.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to load complaints');
+    }
+    
+    // Show only recent 5 complaints for dashboard
+    const recentComplaints = data.complaints.slice(0, 5);
+    renderDashboardComplaintsTable(recentComplaints);
+    
+  } catch (error) {
+    console.error('Error loading dashboard complaints:', error);
+    container.innerHTML = `<div style="text-align: center; padding: 20px; color: #718096;">Unable to load complaints</div>`;
+  }
+}
+
+function renderDashboardComplaintsTable(complaints) {
+  const container = document.getElementById('complaintsContainer');
+  if (!container) return;
+  
+  if (complaints.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #718096;">
+        <p>No complaints found</p>
+        <a href="#/file-complaint" class="btn-primary" style="margin-top: 12px;">File Your First Complaint</a>
+      </div>
+    `;
+    return;
+  }
+  
+  const tableHtml = `
+    <table class="complaints-table">
+      <thead>
+        <tr>
+          <th>Complaint ID</th>
+          <th>Date</th>
+          <th>Category</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${complaints.map(complaint => `
+          <tr>
+            <td><strong>${complaint.complaint_id}</strong></td>
+            <td>${new Date(complaint.created_at).toLocaleDateString()}</td>
+            <td>${complaint.category}</td>
+            <td><span class="status-badge status-${complaint.status}">${complaint.status}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  container.innerHTML = tableHtml;
+}
+
+async function loadDashboardStats() {
+  try {
+    const res = await fetch(`${backendBase}/get_complaints.php`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors'
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      const totalElement = document.getElementById('totalComplaints');
+      const resolvedElement = document.getElementById('resolvedCount');
+      
+      if (totalElement) totalElement.textContent = data.complaints.length;
+      
+      const resolvedCount = data.complaints.filter(c => c.status === 'resolved').length;
+      if (resolvedElement) resolvedElement.textContent = resolvedCount;
+    }
+  } catch (error) {
+    console.error('Error loading dashboard stats:', error);
+  }
+}
+
+function renderEmergencyComplaint() {
+  if (!currentUser || currentUserRole === 'police') {
+    return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file emergency complaint.</div></div>`
+  }
+
+  return `
+    <style>
+      .emergency-container {
+        background-color: #f8f9fa;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        min-height: 100vh;
+        padding: 20px 0;
+      }
+      .emergency-header {
+        background-color: #1a365d;
+        color: white;
+        padding: 20px 0;
+        border-bottom: 3px solid #c53030;
+        text-align: center;
+      }
+      .emergency-title {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+      }
+      .emergency-subtitle {
+        font-size: 16px;
+        opacity: 0.9;
+        margin: 5px 0 0 0;
+      }
+      .emergency-form {
+        background-color: white;
+        padding: 30px;
+        margin: 20px auto;
+        max-width: 600px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .location-section {
+        background-color: #f7fafc;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+      }
+      .location-display {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .location-coords {
+        font-family: monospace;
+        color: #2d3748;
+        font-size: 14px;
+      }
+      .map-preview {
+        width: 100%;
+        height: 200px;
+        background-color: #e2e8f0;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #718096;
+        margin-bottom: 10px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-label {
+        display: block;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 8px;
+      }
+      .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      .form-select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: white;
+        box-sizing: border-box;
+      }
+      .btn-emergency {
+        width: 100%;
+        background-color: #c53030;
+        color: white;
+        padding: 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .btn-emergency:hover {
+        background-color: #b91c1c;
+      }
+      .photo-upload {
+        border: 2px dashed #e2e8f0;
+        border-radius: 4px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        margin-bottom: 10px;
+      }
+      .photo-upload:hover {
+        border-color: #c53030;
+        background-color: #fff5f5;
+      }
+    </style>
+
+    <div class="emergency-container">
+      <!-- Header -->
+      <div class="emergency-header">
+        <div class="container">
+          <div class="emergency-title">🚨 EMERGENCY COMPLAINT</div>
+          <div class="emergency-subtitle">Fast Response System - Police Notified Immediately</div>
+        </div>
+      </div>
+
+      <div class="container">
+        <div class="emergency-form">
+          <form id="emergencyComplaintForm">
+            <!-- GPS Location -->
+            <div class="location-section">
+              <div class="form-label">📍 Your Current Location</div>
+              <div class="map-preview" id="mapPreview">
+                <div>
+                  <i class="bi bi-geo-alt" style="font-size: 24px;"></i>
+                  <p>Detecting GPS location...</p>
+                </div>
+              </div>
+              <div class="location-display">
+                <div class="location-coords" id="locationCoords">Lat: --, Lng: --</div>
+                <div>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="detectLocation()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                  </button>
+                  <button type="button" class="btn btn-outline-primary btn-sm ms-2" onclick="enableMapPinSelection()">
+                    <i class="bi bi-pin-map"></i> Select on Map
+                  </button>
+                </div>
+              </div>
+              <div id="mapPinSelector" style="display: none; margin-top: 15px;">
+                <div class="form-label">📍 Click on map to set location</div>
+                <div id="interactiveMap" style="width: 100%; height: 300px; background-color: #e2e8f0; border-radius: 4px; position: relative; cursor: crosshair;">
+                  <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #718096;">
+                    <i class="bi bi-map" style="font-size: 48px;"></i>
+                    <p>Click anywhere to set location</p>
+                    <small>Coordinates will appear here</small>
+                  </div>
+                </div>
+                <div class="mt-2">
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="disableMapPinSelection()">Cancel</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Emergency Type -->
+            <div class="form-group">
+              <label class="form-label">Emergency Type</label>
+              <select class="form-select" id="emergencyType" required>
+                <option value="">Select Emergency Type</option>
+                <option value="accident">🚗 Accident</option>
+                <option value="theft">💰 Theft</option>
+                <option value="assault">👊 Assault</option>
+                <option value="fire">🔥 Fire</option>
+                <option value="medical">🚑 Medical</option>
+                <option value="other">⚠️ Other</option>
+              </select>
+            </div>
+
+            <!-- Photo Upload -->
+            <div class="form-group">
+              <label class="form-label">📷 Upload Photo Evidence</label>
+              <div class="photo-upload" onclick="document.getElementById('emergencyPhoto').click()">
+                <div>
+                  <i class="bi bi-camera" style="font-size: 24px;"></i>
+                  <p>Click to upload photo or take picture</p>
+                </div>
+              </div>
+              <input type="file" id="emergencyPhoto" accept="image/*" style="display: none;">
+            </div>
+
+            <!-- Short Note -->
+            <div class="form-group">
+              <label class="form-label">Brief Description (Max 120 characters)</label>
+              <textarea class="form-control" id="emergencyNote" rows="3" maxlength="120" placeholder="Brief details of emergency..."></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-emergency">
+              🚨 SEND EMERGENCY ALERT
+            </button>
+
+            <div id="emergencyAlert"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Auto-detect location on page load
+      setTimeout(() => {
+        detectLocation();
+        setupEmergencyForm();
+      }, 500);
+    </script>
+  `
+
+  // Add event listener for normal complaint location capture
+  setTimeout(() => {
+    const captureBtn = document.getElementById('captureUserLocation');
+    if (captureBtn) {
+      captureBtn.addEventListener('click', detectUserLocation);
+    }
+  }, 500);
+}
+
 function renderPoliceDashboard() {
   if (!currentUser || currentUserRole !== 'police') {
     return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access. <a href="#/police-login">Police Login</a></div></div>`
@@ -1050,10 +1522,17 @@ function renderPoliceDashboard() {
     <div class="container">
       <div class="dashboard-header">
         <h2>Police Dashboard</h2>
-        <p class="mb-0">Officer ID: ${currentUser.email}</p>
+        <p class="mb-0">Station: ${currentUser.station_name || 'Central Police Station'}</p>
+        <p class="mb-0 text-muted small">Auto-refreshing emergency complaints every 10 seconds</p>
       </div>
 
       <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <div class="stat-box emergency-stat">
+            <div class="number" id="emergencyCount">-</div>
+            <div class="label">🚨 Emergency</div>
+          </div>
+        </div>
         <div class="col-md-3">
           <div class="stat-box">
             <div class="number" id="pendingCount">-</div>
@@ -1072,12 +1551,6 @@ function renderPoliceDashboard() {
             <div class="label">Resolved</div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="stat-box">
-            <div class="number" id="totalComplaints2">-</div>
-            <div class="label">Total</div>
-          </div>
-        </div>
       </div>
 
       <div class="row mb-3">
@@ -1085,6 +1558,7 @@ function renderPoliceDashboard() {
           <label class="form-label">Filter by Status</label>
           <select class="form-select" id="statusFilter">
             <option value="">All Status</option>
+            <option value="high_priority">High Priority</option>
             <option value="pending">Pending</option>
             <option value="investigating">Under Investigation</option>
             <option value="resolved">Resolved</option>
@@ -1094,6 +1568,7 @@ function renderPoliceDashboard() {
           <label class="form-label">Filter by Category</label>
           <select class="form-select" id="categoryFilter">
             <option value="">All Categories</option>
+            <option value="emergency">Emergency</option>
             <option value="theft">Theft & Robbery</option>
             <option value="cyber-crime">Cyber Crime</option>
             <option value="missing-person">Missing Person</option>
@@ -1104,17 +1579,28 @@ function renderPoliceDashboard() {
         </div>
         <div class="col-md-4">
           <label class="form-label">&nbsp;</label>
-          <button class="btn btn-primary w-100" onclick="loadComplaints()">Apply Filters</button>
+          <button class="btn btn-primary w-100" onclick="loadPoliceComplaints()">Apply Filters</button>
         </div>
       </div>
 
-      <h3 class="mb-3">All Complaints</h3>
+      <h3 class="mb-3">Assigned Complaints</h3>
       <div id="complaintsTableContainer">
         <div class="loading">
           <div class="spinner-border" role="status"></div>
         </div>
       </div>
     </div>
+
+    <script>
+      // Load station-specific complaints on page load
+      setTimeout(() => {
+        loadPoliceComplaints();
+        // Auto-refresh emergency complaints every 10 seconds
+        setInterval(() => {
+          loadPoliceComplaints(true);
+        }, 10000);
+      }, 500);
+    </script>
   `
 }
 
@@ -1149,7 +1635,7 @@ async function loadComplaintDetail(complaintId) {
   if (!container) return
   
   try {
-    const res = await fetch(`http://localhost/adii/get_complaint.php?id=${complaintId}`, {
+    const res = await fetch(`${backendBase}/get_complaint.php?id=${complaintId}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
@@ -1282,9 +1768,6 @@ document.addEventListener('submit', async (e) => {
   } else if (form.id === 'complaintForm') {
     e.preventDefault()
     await handleComplaintSubmit(form)
-  } else if (form.id === 'emergencyComplaintForm') {
-    e.preventDefault()
-    await handleEmergencyComplaintSubmit(form)
   } else if (form.id === 'updateComplaintForm') {
     e.preventDefault()
     await handleUpdateComplaint(form)
@@ -1292,18 +1775,13 @@ document.addEventListener('submit', async (e) => {
 })
 
 async function handleUserRegister(form) {
-  const fullName = document.getElementById('fullName')?.value || ''
-  const email = document.getElementById('email')?.value || ''
-  const mobile = document.getElementById('mobile')?.value || ''
-  const address = document.getElementById('address')?.value || ''
-  const password = document.getElementById('password')?.value || ''
+  const fullName = document.getElementById('fullName').value
+  const email = document.getElementById('email').value
+  const mobile = document.getElementById('mobile').value
+  const address = document.getElementById('address').value
+  const password = document.getElementById('password').value
   const confirmPassword = document.getElementById('password2') ? document.getElementById('password2').value : (document.getElementById('confirmPassword') ? document.getElementById('confirmPassword').value : '')
   const alertDiv = document.getElementById('registerAlert')
-
-  if (!fullName || !email || !mobile || !password) {
-    alertDiv.innerHTML = `<div class="alert alert-danger">Please fill in all required fields</div>`
-    return
-  }
 
   if (password !== confirmPassword) {
     alertDiv.innerHTML = '<div class="alert alert-danger">Passwords do not match</div>'
@@ -1322,12 +1800,11 @@ async function handleUserRegister(form) {
 
     // For Vite dev server, use the PHP backend
     const tried = []
-    const candidates = []
-    // Try XAMPP URLs for PHP processing
-    candidates.push('http://localhost:8080/register.php')
-    candidates.push('http://127.0.0.1:8080/register.php')
-    candidates.push('http://localhost/register.php')
-    candidates.push('http://127.0.0.1/register.php')
+    // Try multiple endpoints for deployment compatibility
+    const candidates = [
+      `${backendBase}/register.php`,
+      `${backendBase}/api/register.php`
+    ]
 
     let lastError = null
     let handled = false
@@ -1388,14 +1865,9 @@ async function handleUserRegister(form) {
 }
 
 async function handleUserLogin(form) {
-  const email = document.getElementById('loginEmail')?.value || ''
-  const password = document.getElementById('loginPassword')?.value || ''
+  const email = document.getElementById('loginEmail').value
+  const password = document.getElementById('loginPassword').value
   const alertDiv = document.getElementById('loginAlert')
-
-  if (!email || !password) {
-    alertDiv.innerHTML = `<div class="alert alert-danger">Please fill in all required fields</div>`
-    return
-  }
 
   try {
     // First try PHP backend
@@ -1403,12 +1875,10 @@ async function handleUserLogin(form) {
     payload.append('email', email)
     payload.append('password', password)
 
-    // Try multiple login endpoints
+    // Try multiple login endpoints for deployment compatibility
     const candidates = [
-      'http://localhost:8080/login.php',
-      'http://127.0.0.1:8080/login.php',
-      'http://localhost/login.php',
-      'http://127.0.0.1/login.php'
+      `${backendBase}/login.php`,
+      `${backendBase}/api/login.php`
     ]
     
     let handled = false
@@ -1463,21 +1933,16 @@ async function handleUserLogin(form) {
 }
 
 async function handlePoliceLogin(form) {
-  const email = document.getElementById('policeEmail')?.value || ''
-  const password = document.getElementById('policePassword')?.value || ''
+  const email = document.getElementById('policeEmail').value
+  const password = document.getElementById('policePassword').value
   const alertDiv = document.getElementById('policeLoginAlert')
-
-  if (!email || !password) {
-    alertDiv.innerHTML = `<div class="alert alert-danger">Please fill in all required fields</div>`
-    return
-  }
 
   try {
     const payload = new URLSearchParams()
     payload.append('email', email)
     payload.append('password', password)
 
-    const res = await fetch('http://localhost:8080/police-login.php', {
+    const res = await fetch(`${backendBase}/police-login.php`, {
       method: 'POST',
       headers: { 
         'Accept': 'application/json',
@@ -1513,164 +1978,17 @@ async function handlePoliceLogin(form) {
   }
 }
 
-function renderFileComplaint() {
-  // Temporarily remove login requirement for testing
-  // if (!currentUser || currentUserRole === 'police') {
-  //   return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
-  // }
-
-  return `
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto">
-          <div class="form-section">
-            <h2><i class="bi bi-file-earmark-text"></i> File a Normal Complaint</h2>
-            <p class="text-muted">For non-urgent complaints that will be processed within 24-48 hours</p>
-            
-            <form id="complaintForm">
-              <div class="mb-3">
-                <label class="form-label">Complaint Title <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="complaintTitle" placeholder="Brief title of your complaint" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Category <span class="text-danger">*</span></label>
-                <select class="form-select" id="category" required>
-                  <option value="">Select a category</option>
-                  <option value="theft">Theft & Robbery</option>
-                  <option value="cyber-crime">Cyber Crime</option>
-                  <option value="missing-person">Missing Person</option>
-                  <option value="violence">Violence & Harassment</option>
-                  <option value="fraud">Fraud & Forgery</option>
-                  <option value="property">Property Damage</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Incident Date <span class="text-danger">*</span></label>
-                <input type="date" class="form-control" id="incidentDate" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Your Current Location (Auto-captured) <span class="text-danger">*</span></label>
-                <div class="input-group">
-                  <input type="text" class="form-control" id="userLocation" placeholder="Waiting for GPS..." readonly>
-                  <button class="btn btn-outline-secondary" type="button" id="captureUserLocation">
-                    <i class="bi bi-geo-alt"></i> Capture
-                  </button>
-                </div>
-                <small class="text-muted">Your current location will be recorded for verification</small>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Crime Location (Where incident happened) <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="crimeLocation" placeholder="Address or location of incident" required>
-                <small class="text-muted">Optional: Provide GPS coordinates (latitude, longitude)</small>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Description <span class="text-danger">*</span></label>
-                <textarea class="form-control" id="description" rows="5" placeholder="Provide detailed information about the incident" required></textarea>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Upload Evidence (Optional)</label>
-                <input type="file" class="form-control" id="evidenceFile" accept=".pdf,.jpg,.jpeg,.png,.mp4,.gif">
-                <small class="text-muted">Accepted: PDF, JPG, PNG, MP4, GIF (Max 10MB)</small>
-              </div>
-              <div id="complaintAlert"></div>
-              <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-file-earmark-plus"></i> Submit Normal Complaint
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  `
-}
-
-function renderEmergencyComplaint() {
-  // Temporarily remove login requirement for testing
-  // if (!currentUser || currentUserRole === 'police') {
-  //   return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
-  // }
-
-  return `
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto">
-          <div class="form-section emergency-section">
-            <div class="alert alert-info d-flex align-items-center mb-4">
-              <i class="bi bi-info-circle me-3 fs-4"></i>
-              <div>
-                <strong>EMERGENCY COMPLAINT</strong>
-                <div class="small">For urgent matters requiring immediate police attention</div>
-              </div>
-            </div>
-            
-            <h2 class="text-info"><i class="bi bi-info-circle"></i> File an Emergency Complaint</h2>
-            <p class="text-muted">This will be prioritized for immediate action</p>
-            
-            <form id="emergencyComplaintForm">
-              <div class="mb-3">
-                <label class="form-label">Emergency Type</label>
-                <select class="form-select border-info" id="emergencyType">
-                  <option value="">Select emergency type</option>
-                  <option value="life-threatening">Life Threatening</option>
-                  <option value="crime-in-progress">Crime in Progress</option>
-                  <option value="serious-accident">Serious Accident</option>
-                  <option value="fire-emergency">Fire Emergency</option>
-                  <option value="medical-emergency">Medical Emergency</option>
-                  <option value="missing-person">Missing Person</option>
-                  <option value="domestic-violence">Domestic Violence</option>
-                  <option value="other-emergency">Other Emergency</option>
-                </select>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Location</label>
-                <div class="input-group">
-                  <input type="text" class="form-control border-info" id="emergencyLocation" placeholder="Where emergency occurred">
-                  <button class="btn btn-info" type="button" id="captureEmergencyLocation">
-                    <i class="bi bi-geo-alt"></i> Capture
-                  </button>
-                </div>
-                <small class="text-muted">Location where the emergency occurred</small>
-              </div>
-              
-              <div class="mb-3">
-                <label class="form-label">Upload File</label>
-                <input type="file" class="form-control border-info" id="emergencyPhoto" accept="image/*,video/*,.pdf,.doc,.docx">
-                <small class="text-muted">Photo, video, or document evidence</small>
-              </div>
-              
-              <div id="emergencyComplaintAlert" style="min-height: 20px; border: 1px dashed #ccc; padding: 10px; margin: 10px 0; background: #f8f9fa;">
-                <div class="alert alert-info">
-                  <i class="bi bi-info-circle"></i> Fill the fields above and submit to report emergency.
-                </div>
-              </div>
-              
-              <button type="submit" class="btn btn-info w-100 btn-lg">
-                <i class="bi bi-info-circle"></i> Submit Emergency Report
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  `
-}
-
 async function handleComplaintSubmit(form) {
-  const title = document.getElementById('complaintTitle')?.value || ''
-  const category = document.getElementById('category')?.value || ''
-  const incidentDate = document.getElementById('incidentDate')?.value || ''
+  const title = document.getElementById('complaintTitle').value
+  const category = document.getElementById('category').value
+  const incidentDate = document.getElementById('incidentDate').value
   const userLocationInput = document.getElementById('userLocation')
-  const crimeLocation = document.getElementById('crimeLocation')?.value || ''
-  const description = document.getElementById('description')?.value || ''
-  const evidenceFile = document.getElementById('evidenceFile')?.files[0]
+  const crimeLocation = document.getElementById('crimeLocation').value
+  const description = document.getElementById('description').value
+  const evidenceFile = document.getElementById('evidenceFile').files[0]
   const alertDiv = document.getElementById('complaintAlert')
 
   try {
-    if (!title || !category || !incidentDate || !crimeLocation || !description) {
-      throw new Error('Please fill in all required fields')
-    }
     // Parse user location from data attribute (optional for now)
     let userLocation = null
     const userLocationStr = userLocationInput.getAttribute('data-location')
@@ -1724,14 +2042,14 @@ async function handleComplaintSubmit(form) {
       formData.append('crime_location', crimeLocationData)
       formData.append('description', description)
       
-      res = await fetch('http://localhost:8080/file_complaint.php', {
+      res = await fetch(`${backendBase}/file_complaint.php`, {
         method: 'POST',
         body: formData,
         mode: 'cors'
       })
     } else {
       // Use JSON for requests without files
-      res = await fetch('http://localhost:8080/file_complaint.php', {
+      res = await fetch(`${backendBase}/file_complaint.php`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -1773,218 +2091,15 @@ async function handleComplaintSubmit(form) {
     successMessage += `</div>`
     
     alertDiv.innerHTML = successMessage
-    
-    // Safe form reset
-    try {
-      form.reset()
-    } catch (e) {
-      console.warn('Form reset failed:', e)
-    }
-    
-    // Safe field clearing
-    try {
-      const userLocation = document.getElementById('userLocation')
-      if (userLocation) {
-        userLocation.value = ''
-        userLocation.removeAttribute('data-location')
-      }
-    } catch (e) {
-      console.warn('User location field reset failed:', e)
-    }
+    form.reset()
+    document.getElementById('userLocation').value = ''
+    document.getElementById('userLocation').removeAttribute('data-location')
     
     setTimeout(() => {
       location.hash = '#/my-complaints'
     }, 2000)
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
-  }
-}
-
-// Test function for emergency complaint alert
-function testAlert() {
-  const alertDiv = document.getElementById('emergencyComplaintAlert')
-  console.log('=== Test Alert Function ===')
-  console.log('AlertDiv:', alertDiv)
-  console.log('AlertDiv ID:', alertDiv?.id)
-  console.log('AlertDiv InnerHTML before:', alertDiv?.innerHTML)
-  
-  if (alertDiv) {
-    const testMessage = `<div class="alert alert-success alert-dismissible">
-      <strong><i class="bi bi-check-circle-fill"></i> Test Alert Working!</strong><br>
-      <small>This is a test message to verify alert functionality.</small>
-      <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
-    </div>`
-    
-    alertDiv.innerHTML = testMessage
-    console.log('AlertDiv InnerHTML after:', alertDiv.innerHTML)
-    console.log('Test alert displayed successfully!')
-  } else {
-    console.error('AlertDiv not found!')
-  }
-}
-
-window.testAlert = testAlert
-
-async function handleEmergencyComplaintSubmit(form) {
-  const emergencyType = document.getElementById('emergencyType')?.value || ''
-  const emergencyLocation = document.getElementById('emergencyLocation')?.value || ''
-  const emergencyPhoto = document.getElementById('emergencyPhoto')?.files[0]
-  const alertDiv = document.getElementById('emergencyComplaintAlert')
-
-  // Debug logging
-  console.log('=== Emergency Complaint Submission Debug ===')
-  console.log('Form ID:', form.id)
-  console.log('Emergency Type:', emergencyType)
-  console.log('Emergency Location:', emergencyLocation)
-  console.log('Emergency Photo:', emergencyPhoto)
-  console.log('Alert Div:', alertDiv)
-  console.log('Alert Div ID:', alertDiv?.id)
-  console.log('Alert Div InnerHTML:', alertDiv?.innerHTML)
-
-  try {
-    // Validate required fields
-    if (!emergencyType) {
-      console.log('Error: Emergency type not selected')
-      throw new Error('Please select emergency type')
-    }
-
-    if (!emergencyLocation) {
-      console.log('Error: Location not provided')
-      throw new Error('Please provide emergency location')
-    }
-
-    console.log('Validation passed, preparing submission...')
-
-    // Location data
-    const emergencyLocationData = {
-      address: emergencyLocation,
-      captured_at: new Date().toISOString()
-    }
-
-    // Submit to backend with emergency data
-    const payload = {
-      title: `[EMERGENCY] ${emergencyType}`,
-      category: emergencyType,
-      incident_date: new Date().toISOString().split('T')[0],
-      emergency_location: emergencyLocationData,
-      description: `EMERGENCY TYPE: ${emergencyType}\nLOCATION: ${emergencyLocation}\nFILE: ${emergencyPhoto?.name || 'No file uploaded'}`,
-      emergency_type: emergencyType,
-      emergency_location: emergencyLocation,
-      is_emergency: true
-    }
-
-    console.log('Submitting emergency complaint:', payload)
-    
-    // Create FormData for file upload
-    const formData = new FormData()
-    formData.append('title', payload.title)
-    formData.append('category', payload.category)
-    formData.append('incident_date', payload.incident_date)
-    formData.append('emergency_location', JSON.stringify(payload.emergency_location))
-    formData.append('description', payload.description)
-    formData.append('emergency_type', payload.emergency_type)
-    formData.append('emergency_location', payload.emergency_location)
-    formData.append('is_emergency', payload.is_emergency)
-    formData.append('user_id', currentUser?.id || 'anonymous')
-    
-    if (emergencyPhoto) {
-      formData.append('evidence_file', emergencyPhoto)
-    }
-
-    console.log('Sending request to backend...')
-    const res = await fetch('http://localhost:8080/file_complaint.php', {
-      method: 'POST',
-      body: formData,
-      mode: 'cors'
-    })
-
-    console.log('Response status:', res.status)
-    console.log('Response OK:', res.ok)
-
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`)
-    }
-    
-    const responseText = await res.text()
-    console.log('Raw response:', responseText)
-    
-    let data
-    try {
-      data = JSON.parse(responseText)
-      console.log('Parsed data:', data)
-    } catch (e) {
-      console.error('JSON parse error:', e)
-      throw new Error('Server returned invalid response: ' + responseText)
-    }
-
-    if (!data.success) {
-      console.log('Server error:', data.message)
-      throw new Error(data.message || 'Failed to file emergency complaint')
-    }
-
-    console.log('Success! Preparing success message...')
-    let successMessage = `<div class="alert alert-success alert-dismissible">
-      <strong><i class="bi bi-check-circle-fill"></i> Emergency Report Filed Successfully!</strong><br>
-      <strong>Complaint ID:</strong> ${data.complaint_id}<br>
-      <strong>Priority:</strong> HIGH<br>
-      <strong>Emergency Type:</strong> ${emergencyType}<br>
-      <strong>Location:</strong> ${emergencyLocation}<br>
-      <small>Your emergency report has been marked for immediate attention.</small>`
-    
-    if (data.evidence_file) {
-      successMessage += `<br><strong>Evidence File:</strong> ${data.evidence_file}`
-    }
-    
-    successMessage += `</div>`
-    
-    console.log('Setting success message to alertDiv...')
-    console.log('AlertDiv before:', alertDiv?.innerHTML)
-    
-    if (alertDiv) {
-      alertDiv.innerHTML = successMessage
-      console.log('AlertDiv after:', alertDiv.innerHTML)
-    } else {
-      console.error('AlertDiv is null or undefined!')
-      // Try to find alert div by querySelector
-      const fallbackAlert = document.querySelector('#emergencyComplaintAlert')
-      console.log('Fallback alert found:', fallbackAlert)
-      if (fallbackAlert) {
-        fallbackAlert.innerHTML = successMessage
-      }
-    }
-    
-    // Safe form reset
-    try {
-      form.reset()
-    } catch (e) {
-      console.warn('Form reset failed:', e)
-    }
-    
-    // Safe field clearing
-    try {
-      const emergencyLocationInput = document.getElementById('emergencyLocation')
-      if (emergencyLocationInput) {
-        emergencyLocationInput.value = ''
-        emergencyLocationInput.removeAttribute('data-location')
-      }
-    } catch (e) {
-      console.warn('Emergency location field reset failed:', e)
-    }
-    
-    setTimeout(() => {
-      location.hash = '#/my-complaints'
-    }, 3000)
-  } catch (error) {
-    console.error('Emergency complaint submission error:', error)
-    const errorMessage = `<div class="alert alert-danger alert-dismissible">
-      <strong><i class="bi bi-exclamation-triangle-fill"></i> Error:</strong> ${error.message}
-    </div>`
-    
-    if (alertDiv) {
-      alertDiv.innerHTML = errorMessage
-    } else {
-      console.error('Cannot display error message - alertDiv not found!')
-    }
   }
 }
 
@@ -1995,10 +2110,6 @@ async function handleUpdateComplaint(form) {
   const complaintId = new URLSearchParams(location.hash).get('id')
 
   try {
-    if (!supabase) {
-      throw new Error('Database not available')
-    }
-    
     const { error } = await supabase
       .from('complaints')
       .update({
@@ -2020,74 +2131,12 @@ async function handleUpdateComplaint(form) {
   }
 }
 
-// Load complaints from PHP backend (fallback for when Supabase is not available)
-async function loadComplaintsFromPHP(container, statusFilter = '', categoryFilter = '') {
-  try {
-    const response = await fetch('http://localhost:8080/get_complaints.php', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      },
-      mode: 'cors'
-    })
-    
-    if (!response.ok) {
-      throw new Error('Failed to load complaints')
-    }
-    
-    const data = await response.json()
-    
-    if (!data.success) {
-      throw new Error(data.message || 'Failed to load complaints')
-    }
-    
-    const complaints = data.complaints || []
-    
-    if (!complaints || complaints.length === 0) {
-      container.innerHTML = '<div class="alert alert-info">No complaints found</div>'
-      return
-    }
-    
-    // Filter complaints based on user role and filters
-    let filteredComplaints = complaints
-    
-    if (currentUserRole === 'user' && currentUser && currentUser.id) {
-      filteredComplaints = complaints.filter(c => c && c.user_id === currentUser.id)
-    }
-    
-    if (statusFilter) {
-      filteredComplaints = filteredComplaints.filter(c => c && c.status === statusFilter)
-    }
-    
-    if (categoryFilter) {
-      filteredComplaints = filteredComplaints.filter(c => c && c.category === categoryFilter)
-    }
-    
-    if (currentUserRole === 'police') {
-      renderPoliceComplaintsTable(filteredComplaints)
-    } else {
-      renderUserComplaints(filteredComplaints)
-    }
-    
-    updateStats(filteredComplaints)
-    
-  } catch (error) {
-    console.error('Error loading complaints from PHP:', error)
-    container.innerHTML = `<div class="alert alert-danger">Failed to load complaints: ${error.message}</div>`
-  }
-}
-
 async function logout() {
   try {
     setLoading(true)
+    const { error } = await supabase.auth.signOut()
     
-    if (supabase) {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-    }
-    
-    // Use PHP logout as fallback
-    fetch('http://localhost:8080/logout.php', { method: 'POST' })
+    if (error) throw error
     
     currentUser = null
     currentUserRole = null
@@ -2123,13 +2172,6 @@ async function loadComplaints() {
   const categoryFilter = document.getElementById('categoryFilter')?.value || ''
 
   try {
-    if (!supabase) {
-      // Use PHP fallback for complaints
-      container.innerHTML = '<div class="alert alert-info">Loading complaints from database...</div>'
-      loadComplaintsFromPHP(container, statusFilter, categoryFilter)
-      return
-    }
-    
     let query = supabase.from('complaints').select('*')
 
     if (currentUserRole === 'user') {
@@ -2180,54 +2222,37 @@ function updateStats(complaints) {
   const totalEl2 = document.getElementById('totalComplaints2')
   const resolvedEl2 = document.getElementById('resolvedCount2')
 
-  console.log('=== Update Stats Debug ===')
-  console.log('Total complaints:', total)
-  console.log('Resolved:', resolved)
-  console.log('Pending:', pending)
-  console.log('investigating:', investigating)
-  console.log('Total element found:', !!totalEl)
-  console.log('Resolved element found:', !!resolvedEl)
-  console.log('Pending element found:', !!pendingEl)
-  console.log('investigating element found:', !!investigatingEl)
-
   if (totalEl) totalEl.textContent = total
   if (resolvedEl) resolvedEl.textContent = resolved
   if (pendingEl) pendingEl.textContent = pending
   if (investigatingEl) investigatingEl.textContent = investigating
   if (totalEl2) totalEl2.textContent = total
   if (resolvedEl2) resolvedEl2.textContent = resolved
-  
-  console.log('Stats updated successfully!')
 }
 
 function renderUserComplaints(complaints) {
   const container = document.getElementById('myComplaintsContainer')
   let html = ''
 
-  if (!complaints || complaints.length === 0) {
-    container.innerHTML = '<div class="alert alert-info">No complaints found</div>'
-    return
-  }
-
   complaints.forEach(complaint => {
-    const badgeClass = `badge-${complaint.status || 'pending'}`
-    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : 
-                      complaint.status ? complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1) : 'Pending'
+    const badgeClass = `badge-${complaint.status}`
+    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)
 
     html += `
-      <div class="complaint-card ${complaint.status || 'pending'}">
+      <div class="complaint-card ${complaint.status}">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <div>
-            <h5 class="mb-1">${complaint.title || 'Untitled Complaint'}</h5>
-            <small class="text-muted">ID: ${complaint.complaint_id || 'N/A'}</small>
+            <h5 class="mb-1">${complaint.title}</h5>
+            <small class="text-muted">ID: ${complaint.complaint_id}</small>
           </div>
           <span class="badge ${badgeClass}">${statusText}</span>
         </div>
-        <p class="mb-2"><strong>Category:</strong> ${complaint.category || 'Not specified'}</p>
-        <p class="mb-2"><strong>Date:</strong> ${complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : 'Not specified'}</p>
-        <p class="text-muted">${complaint.description ? complaint.description.substring(0, 100) + '...' : 'No description available'}</p>
+        <p class="mb-2"><strong>Category:</strong> ${complaint.category}</p>
+        <p class="mb-2"><strong>Location:</strong> ${complaint.location}</p>
+        <p class="mb-2"><strong>Date:</strong> ${new Date(complaint.incident_date).toLocaleDateString()}</p>
+        <p class="text-muted">${complaint.description.substring(0, 100)}...</p>
         ${complaint.police_remarks ? `<p class="mt-2 p-2 bg-light rounded"><strong>Police Remarks:</strong> ${complaint.police_remarks}</p>` : ''}
-        <button class="btn btn-sm btn-outline-primary mt-2" onclick="location.hash='#/view-complaint?id=${complaint.id || ''}'">View Details</button>
+        <button class="btn btn-sm btn-outline-primary mt-2" onclick="location.hash='#/view-complaint?id=${complaint.id}'">View Details</button>
       </div>
     `
   })
@@ -2237,12 +2262,6 @@ function renderUserComplaints(complaints) {
 
 function renderPoliceComplaintsTable(complaints) {
   const container = document.getElementById('complaintsTableContainer')
-  
-  if (!complaints || complaints.length === 0) {
-    container.innerHTML = '<div class="alert alert-info">No complaints found</div>'
-    return
-  }
-  
   let html = `
     <div class="table-responsive">
       <table class="table table-hover">
@@ -2261,23 +2280,22 @@ function renderPoliceComplaintsTable(complaints) {
   `
 
   complaints.forEach(complaint => {
-    const badgeClass = `badge-${complaint.status || 'pending'}`
-    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : 
-                      complaint.status ? complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1) : 'Pending'
+    const badgeClass = `badge-${complaint.status}`
+    const statusText = complaint.status === 'investigating' ? 'Under Investigation' : complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)
 
     html += `
       <tr>
-        <td><strong>${complaint.complaint_id || 'N/A'}</strong></td>
-        <td>${complaint.user_id ? complaint.user_id.substring(0, 8) + '...' : 'Unknown'}</td>
-        <td>${complaint.title || 'Untitled'}</td>
-        <td>${complaint.category || 'Not specified'}</td>
+        <td><strong>${complaint.complaint_id}</strong></td>
+        <td>${complaint.user_id.substring(0, 8)}...</td>
+        <td>${complaint.title}</td>
+        <td>${complaint.category}</td>
         <td><span class="badge ${badgeClass}">${statusText}</span></td>
-        <td>${complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : 'Not specified'}</td>
+        <td>${new Date(complaint.created_at).toLocaleDateString()}</td>
         <td>
-          <button class="btn btn-sm btn-primary" onclick="location.hash='#/view-complaint?id=${complaint.id || ''}'">
+          <button class="btn btn-sm btn-primary" onclick="location.hash='#/view-complaint?id=${complaint.id}'">
             View
           </button>
-          <button class="btn btn-sm btn-warning" onclick="location.hash='#/update-complaint?id=${complaint.id || ''}'">
+          <button class="btn btn-sm btn-warning" onclick="location.hash='#/update-complaint?id=${complaint.id}'">
             Update
           </button>
         </td>
@@ -2297,6 +2315,547 @@ function renderPoliceComplaintsTable(complaints) {
 window.loadComplaints = loadComplaints
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Emergency complaint functions
+let currentLocation = null;
+
+function detectLocation() {
+  const mapPreview = document.getElementById('mapPreview');
+  const coordsDisplay = document.getElementById('locationCoords');
+  
+  if (!mapPreview || !coordsDisplay) return;
+  
+  mapPreview.innerHTML = `
+    <div>
+      <div class="spinner-border" role="status"></div>
+      <p>Detecting GPS location...</p>
+    </div>
+  `;
+  
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const accuracy = position.coords.accuracy;
+        
+        // Reject location if accuracy > 50 meters
+        if (accuracy > 50) {
+          coordsDisplay.textContent = `Accuracy too low: ±${accuracy.toFixed(0)}m`;
+          mapPreview.innerHTML = `
+            <div>
+              <i class="bi bi-exclamation-triangle" style="color: #d69e2e; font-size: 24px;"></i>
+              <p>GPS accuracy too low (${accuracy.toFixed(0)}m). Please try again in open area.</p>
+              <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="detectLocation()">
+                <i class="bi bi-arrow-clockwise"></i> Retry
+              </button>
+            </div>
+          `;
+          return;
+        }
+        
+        currentLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: accuracy,
+          timestamp: new Date().toISOString()
+        };
+        
+        coordsDisplay.textContent = `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)}`;
+        
+        mapPreview.innerHTML = `
+          <div>
+            <i class="bi bi-geo-alt-fill" style="color: #38a169; font-size: 32px;"></i>
+            <p style="margin: 10px 0 0 0; color: #2d3748;">
+              <strong>Location Detected</strong><br>
+              Accuracy: ±${currentLocation.accuracy} meters<br>
+              <small>Time: ${new Date(currentLocation.timestamp).toLocaleTimeString()}</small>
+            </p>
+          </div>
+        `;
+      },
+      (error) => {
+        coordsDisplay.textContent = 'Location detection failed';
+        mapPreview.innerHTML = `
+          <div>
+            <i class="bi bi-exclamation-triangle" style="color: #d69e2e; font-size: 24px;"></i>
+            <p>Unable to detect location. Please enable GPS.</p>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="detectLocation()">
+              <i class="bi bi-arrow-clockwise"></i> Retry
+            </button>
+          </div>
+        `;
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  } else {
+    coordsDisplay.textContent = 'GPS not supported';
+    mapPreview.innerHTML = `
+      <div>
+        <i class="bi bi-x-circle" style="color: #e53e3e; font-size: 24px;"></i>
+        <p>GPS not supported by your browser</p>
+      </div>
+    `;
+  }
+}
+
+// Enhanced location detection for normal complaints
+function detectUserLocation() {
+  const locationInput = document.getElementById('userLocation');
+  const captureBtn = document.getElementById('captureUserLocation');
+  
+  if (!locationInput || !captureBtn) return;
+  
+  captureBtn.disabled = true;
+  captureBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Detecting...';
+  
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const accuracy = position.coords.accuracy;
+        
+        // Reject location if accuracy > 50 meters
+        if (accuracy > 50) {
+          locationInput.value = `Low accuracy: ±${accuracy.toFixed(0)}m - Try again in open area`;
+          captureBtn.disabled = false;
+          captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+          return;
+        }
+        
+        currentLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: accuracy,
+          timestamp: new Date().toISOString()
+        };
+        
+        locationInput.value = `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)} (±${accuracy.toFixed(0)}m)`;
+        captureBtn.disabled = false;
+        captureBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured';
+        
+        setTimeout(() => {
+          captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+        }, 2000);
+      },
+      (error) => {
+        locationInput.value = 'GPS detection failed. Please enable location services.';
+        captureBtn.disabled = false;
+        captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  } else {
+    locationInput.value = 'GPS not supported by your browser';
+    captureBtn.disabled = false;
+    captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+  }
+}
+
+// Map pin selection functions
+function enableMapPinSelection() {
+  const mapPinSelector = document.getElementById('mapPinSelector');
+  const interactiveMap = document.getElementById('interactiveMap');
+  
+  if (!mapPinSelector || !interactiveMap) return;
+  
+  mapPinSelector.style.display = 'block';
+  
+  // Add click event listener to map
+  interactiveMap.addEventListener('click', handleMapClick);
+}
+
+function disableMapPinSelection() {
+  const mapPinSelector = document.getElementById('mapPinSelector');
+  const interactiveMap = document.getElementById('interactiveMap');
+  
+  if (!mapPinSelector || !interactiveMap) return;
+  
+  mapPinSelector.style.display = 'none';
+  interactiveMap.removeEventListener('click', handleMapClick);
+}
+
+function handleMapClick(event) {
+  const interactiveMap = document.getElementById('interactiveMap');
+  const coordsDisplay = document.getElementById('locationCoords');
+  const mapPreview = document.getElementById('mapPreview');
+  
+  if (!interactiveMap) return;
+  
+  const rect = interactiveMap.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  
+  // Convert click position to simulated coordinates (for demo purposes)
+  // In real implementation, you'd use actual map coordinates
+  const lat = 19.0760 + (y - 150) * 0.001; // Mumbai area simulation
+  const lng = 72.8777 + (x - 200) * 0.001;
+  
+  currentLocation = {
+    lat: lat,
+    lng: lng,
+    accuracy: 5, // Manual selection assumed accurate
+    timestamp: new Date().toISOString(),
+    source: 'manual'
+  };
+  
+  // Update displays
+  if (coordsDisplay) {
+    coordsDisplay.textContent = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+  }
+  
+  if (mapPreview) {
+    mapPreview.innerHTML = `
+      <div>
+        <i class="bi bi-geo-alt-fill" style="color: #38a169; font-size: 32px;"></i>
+        <p style="margin: 10px 0 0 0; color: #2d3748;">
+          <strong>Location Set Manually</strong><br>
+          Accuracy: Manual selection<br>
+          <small>Time: ${new Date(currentLocation.timestamp).toLocaleTimeString()}</small>
+        </p>
+      </div>
+    `;
+  }
+  
+  // Hide map selector
+  disableMapPinSelection();
+}
+
+function setupEmergencyForm() {
+  const form = document.getElementById('emergencyComplaintForm');
+  if (!form) return;
+  
+  form.addEventListener('submit', handleEmergencySubmit);
+  
+  // Handle photo upload
+  const photoInput = document.getElementById('emergencyPhoto');
+  if (photoInput) {
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const uploadArea = document.querySelector('.photo-upload');
+        uploadArea.innerHTML = `
+          <div>
+            <i class="bi bi-check-circle-fill" style="color: #38a169; font-size: 24px;"></i>
+            <p><strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)</p>
+          </div>
+        `;
+      }
+    });
+  }
+}
+
+async function handleEmergencySubmit(e) {
+  e.preventDefault();
+  
+  const emergencyType = document.getElementById('emergencyType').value;
+  const emergencyNote = document.getElementById('emergencyNote').value;
+  const photoFile = document.getElementById('emergencyPhoto').files[0];
+  const alertDiv = document.getElementById('emergencyAlert');
+  
+  if (!emergencyType) {
+    if (alertDiv) {
+      alertDiv.innerHTML = '<div style="color: #e53e3e; padding: 10px; background: #fff5f5; border-radius: 4px;">Please select emergency type</div>';
+    }
+    return;
+  }
+  
+  if (!currentLocation) {
+    if (alertDiv) {
+      alertDiv.innerHTML = '<div style="color: #e53e3e; padding: 10px; background: #fff5f5; border-radius: 4px;">Location detection required for emergency complaints</div>';
+    }
+    return;
+  }
+  
+  try {
+    // Show loading state
+    if (alertDiv) {
+      alertDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="spinner-border"></div><p>Sending emergency alert...</p></div>';
+    }
+    
+    // Prepare emergency data
+    const emergencyData = {
+      title: `EMERGENCY: ${emergencyType.toUpperCase()}`,
+      category: 'emergency',
+      description: emergencyNote || `Emergency complaint - ${emergencyType}`,
+      incident_date: new Date().toISOString(),
+      user_location: currentLocation,
+      crime_location: {
+        address: 'Emergency location',
+        captured_at: new Date().toISOString()
+      },
+      priority_level: 'emergency',
+      status: 'high_priority'
+    };
+    
+    // Submit to backend
+    const formData = new FormData();
+    formData.append('title', emergencyData.title);
+    formData.append('category', emergencyData.category);
+    formData.append('description', emergencyData.description);
+    formData.append('incident_date', emergencyData.incident_date);
+    formData.append('user_location', JSON.stringify(emergencyData.user_location));
+    formData.append('crime_location', JSON.stringify(emergencyData.crime_location));
+    formData.append('priority_level', emergencyData.priority_level);
+    formData.append('status', emergencyData.status);
+    
+    if (photoFile) {
+      formData.append('evidence', photoFile);
+    }
+    
+    const res = await fetch(`${backendBase}/file_complaint.php`, {
+      method: 'POST',
+      body: formData,
+      mode: 'cors'
+    });
+    
+    const responseText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      throw new Error('Invalid server response');
+    }
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to submit emergency complaint');
+    }
+    
+    // Show success confirmation
+    if (alertDiv) {
+      alertDiv.innerHTML = `
+        <div style="background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 4px; padding: 20px; text-align: center;">
+          <div style="color: #38a169; font-size: 20px; font-weight: 600; margin-bottom: 15px;">
+            🚨 Emergency Alert Sent Successfully
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Complaint ID:</strong> ${data.complaint_id}
+          </div>
+          <div style="margin-bottom: 15px; color: #2d3748;">
+            <strong>👮 Police Notified:</strong> Nearest police station has been alerted and is responding to your location.
+          </div>
+          <div style="background: #fef5e7; border: 1px solid #f6e05e; border-radius: 4px; padding: 15px; margin-top: 15px;">
+            <strong>🛡️ Stay Safe Instructions:</strong>
+            <ul style="margin: 10px 0 0 20px; padding: 0;">
+              <li>Stay on the phone with emergency services if needed</li>
+              <li>Move to a safe location if possible</li>
+              <li>Follow instructions from responding officers</li>
+              <li>Keep your location services enabled</li>
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+    
+  } catch (error) {
+    console.error('Emergency submission error:', error);
+    if (alertDiv) {
+      alertDiv.innerHTML = `
+        <div style="color: #e53e3e; padding: 10px; background: #fff5f5; border-radius: 4px;">
+          Failed to send emergency alert: ${error.message}
+          <br><button onclick="handleEmergencySubmit(event)" class="btn btn-danger btn-sm mt-2">Retry</button>
+        </div>
+      `;
+    }
+  }
+}
+
+window.detectLocation = detectLocation;
+window.handleEmergencySubmit = handleEmergencySubmit;
+window.enableMapPinSelection = enableMapPinSelection;
+window.disableMapPinSelection = disableMapPinSelection;
+
+// Police dashboard functions
+async function loadPoliceComplaints(isAutoRefresh = false) {
+  const container = document.getElementById('complaintsTableContainer');
+  if (!container) return;
+  
+  try {
+    // Get station ID from current user
+    const stationId = currentUser?.id;
+    if (!stationId) {
+      container.innerHTML = '<div class="alert alert-warning">Station ID not found. Please login again.</div>';
+      return;
+    }
+    
+    const url = `${backendBase}/get_complaints.php?station_id=${encodeURIComponent(stationId)}`;
+    
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors'
+    });
+    
+    const data = await res.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to load complaints');
+    }
+    
+    // Update statistics
+    updatePoliceStats(data.complaints);
+    
+    // Render complaints table
+    renderPoliceComplaintsTable(data.complaints, isAutoRefresh);
+    
+  } catch (error) {
+    console.error('Error loading police complaints:', error);
+    if (!isAutoRefresh) {
+      container.innerHTML = `<div class="alert alert-danger">Failed to load complaints: ${error.message}</div>`;
+    }
+  }
+}
+
+function updatePoliceStats(complaints) {
+  const emergencyCount = document.getElementById('emergencyCount');
+  const pendingCount = document.getElementById('pendingCount');
+  const investigatingCount = document.getElementById('investigatingCount');
+  const resolvedCount2 = document.getElementById('resolvedCount2');
+  
+  if (emergencyCount) {
+    const emergency = complaints.filter(c => c.priority_level === 'emergency').length;
+    emergencyCount.textContent = emergency;
+    if (emergency > 0) {
+      emergencyCount.parentElement.classList.add('emergency-pulse');
+    }
+  }
+  
+  if (pendingCount) {
+    pendingCount.textContent = complaints.filter(c => c.status === 'pending').length;
+  }
+  
+  if (investigatingCount) {
+    investigatingCount.textContent = complaints.filter(c => c.status === 'investigating').length;
+  }
+  
+  if (resolvedCount2) {
+    resolvedCount2.textContent = complaints.filter(c => c.status === 'resolved').length;
+  }
+}
+
+function renderPoliceComplaintsTable(complaints, isAutoRefresh = false) {
+  const container = document.getElementById('complaintsTableContainer');
+  if (!container) return;
+  
+  if (complaints.length === 0) {
+    container.innerHTML = `
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle"></i> No complaints assigned to your station.
+      </div>
+    `;
+    return;
+  }
+  
+  // Apply filters
+  const statusFilter = document.getElementById('statusFilter')?.value || '';
+  const categoryFilter = document.getElementById('categoryFilter')?.value || '';
+  
+  let filteredComplaints = complaints;
+  
+  if (statusFilter) {
+    filteredComplaints = filteredComplaints.filter(c => c.status === statusFilter);
+  }
+  
+  if (categoryFilter) {
+    filteredComplaints = filteredComplaints.filter(c => c.category === categoryFilter);
+  }
+  
+  const tableHtml = `
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Complaint ID</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filteredComplaints.map(complaint => `
+            <tr class="${complaint.priority_level === 'emergency' ? 'table-danger' : ''}">
+              <td><strong>${complaint.complaint_id}</strong></td>
+              <td>${complaint.title}</td>
+              <td>${complaint.category}</td>
+              <td><span class="badge bg-${getPoliceStatusColor(complaint.status)}">${complaint.status}</span></td>
+              <td>
+                ${complaint.priority_level === 'emergency' 
+                  ? '<span class="badge bg-danger">🚨 Emergency</span>' 
+                  : '<span class="badge bg-secondary">Normal</span>'}
+              </td>
+              <td>${new Date(complaint.created_at).toLocaleDateString()}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint.complaint_id}')">
+                  <i class="bi bi-eye"></i> View
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="updateComplaintStatus('${complaint.id}', 'investigating')">
+                  <i class="bi bi-play-circle"></i> Start
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="updateComplaintStatus('${complaint.id}', 'resolved')">
+                  <i class="bi bi-check-circle"></i> Resolve
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  container.innerHTML = tableHtml;
+}
+
+function getPoliceStatusColor(status) {
+  switch (status.toLowerCase()) {
+    case 'high_priority': return 'danger';
+    case 'pending': return 'warning';
+    case 'investigating': return 'info';
+    case 'resolved': return 'success';
+    default: return 'secondary';
+  }
+}
+
+async function updateComplaintStatus(complaintId, newStatus) {
+  try {
+    const res = await fetch(`${backendBase}/update_complaint.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        complaint_id: complaintId,
+        status: newStatus
+      }),
+      mode: 'cors'
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      // Reload complaints
+      loadPoliceComplaints();
+    } else {
+      alert('Failed to update status: ' + data.message);
+    }
+  } catch (error) {
+    console.error('Error updating complaint status:', error);
+    alert('Failed to update status. Please try again.');
+  }
+}
+
+window.loadPoliceComplaints = loadPoliceComplaints;
+window.updateComplaintStatus = updateComplaintStatus;
+
   const observer = new MutationObserver(() => {
     if (document.getElementById('myComplaintsContainer') || document.getElementById('complaintsTableContainer')) {
       loadComplaints()

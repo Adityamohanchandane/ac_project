@@ -56,7 +56,7 @@ echo "\n🗄️  Database Connection Test:\n";
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db = "exam";
+$db = "observx";
 
 if (extension_loaded('mysqli')) {
     $conn = new mysqli($host, $user, $pass, $db);

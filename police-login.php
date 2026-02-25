@@ -1,8 +1,14 @@
 <?php
-// Add CORS headers
-header("Access-Control-Allow-Origin: *");
+// CORS: Allow same origin and localhost for development
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if ($origin && preg_match('#^https?://localhost(:[0-9]+)?$#', $origin)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_HOST']);
+}
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Accept");
+header("Access-Control-Allow-Headers: Content-Type, Accept, Authorization");
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -23,26 +29,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($email === '' || $password === '') {
         $errors[] = 'Email and password are required.';
     } else {
-        $user = find_user_by_email($email);
-        if (!$user) {
-            $errors[] = 'No account found with that email.';
-        } else if (($user['role'] ?? 'user') !== 'police') {
-            $errors[] = 'This account is not authorized for police portal.';
+        $police = find_police_by_email($email);
+        if (!$police) {
+            $errors[] = 'No police station found with that email.';
         } else {
-            if (verify_password($password, $user['password'])) {
+            if (verify_police_password($email, $password)) {
                 // login success
-                $_SESSION['user'] = [
-                    'id' => $user['id'],
-                    'email' => $user['email'],
+                $_SESSION['police'] = [
+                    'id' => $police['id'],
+                    'police_id' => $police['police_id'],
+                    'email' => $police['email'],
+                    'station_name' => $police['station_name'],
                     'role' => 'police'
                 ];
                 
                 if ($isAjax) {
                     header('Content-Type: application/json');
-                    echo json_encode(['success' => true, 'message' => 'Login successful']);
+                    echo json_encode([
+                        'success' => true, 
+                        'message' => 'Login successful',
+                        'police' => [
+                            'id' => $police['id'],
+                            'police_id' => $police['police_id'],
+                            'email' => $police['email'],
+                            'station_name' => $police['station_name'],
+                            'role' => 'police'
+                        ]
+                    ]);
                     exit;
                 } else {
-                    header('Location: http://localhost:5173/#/police-dashboard');
+                    header('Location: police-dashboard.php');
                     exit;
                 }
             } else {

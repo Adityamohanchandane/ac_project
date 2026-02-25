@@ -3,10 +3,30 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// CORS headers
-header("Access-Control-Allow-Origin: *");
+// Start session and check authentication
+session_start();
+if (!isset($_SESSION['user'])) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Authentication required']);
+    exit;
+}
+
+// Load configuration
+$config = require_once __DIR__ . '/config.php';
+$max_file_size = $config['max_file_size'];
+$allowed_types = $config['allowed_types'];
+$upload_dir = $config['upload_dir'];
+
+// CORS: Allow same origin and localhost for development
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if ($origin && preg_match('#^https?://localhost(:[0-9]+)?$#', $origin)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_HOST']);
+}
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Accept");
+header("Access-Control-Allow-Headers: Content-Type, Accept, Authorization");
 
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -15,94 +35,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/db.php';
 
-// Create uploads directory if it doesn't exist
-$uploads_dir = __DIR__ . '/uploads';
-if (!file_exists($uploads_dir)) {
-    mkdir($uploads_dir, 0777, true);
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Check if this is a multipart/form-data request (file upload)
-    if (isset($_FILES['evidence']) && $_FILES['evidence']['error'] === UPLOAD_ERR_OK) {
-        // Handle file upload
-        $file = $_FILES['evidence'];
-        $file_name = $file['name'];
-        $file_tmp = $file['tmp_name'];
-        $file_size = $file['size'];
-        $file_type = $file['type'];
+    // Check if this is a FormData request (file upload) or JSON request
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    
+    if (strpos($contentType, 'multipart/form-data') !== false) {
+        // Handle FormData with file upload
+        $title = $_POST['title'] ?? '';
+        $category = $_POST['category'] ?? '';
+        $incident_date = $_POST['incident_date'] ?? '';
+        $user_location = $_POST['user_location'] ?? '';
+        $crime_location = $_POST['crime_location'] ?? '';
+        $description = $_POST['description'] ?? '';
+        $priority_level = $_POST['priority_level'] ?? 'normal';
+        $status = $_POST['status'] ?? 'pending';
         
-        // Validate file type
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'video/mp4'];
-        if (!in_array($file_type, $allowed_types)) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Invalid file type. Only images, PDF, and MP4 allowed.']);
-            exit;
-        }
-        
-        // Validate file size (max 10MB)
-        if ($file_size > 10 * 1024 * 1024) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'File size too large. Maximum 10MB allowed.']);
-            exit;
-        }
-        
-        // Generate unique filename
-        $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-        $unique_filename = 'evidence_' . uniqid() . '.' . $file_extension;
-        $upload_path = $uploads_dir . '/' . $unique_filename;
-        
-        // Move uploaded file
-        if (move_uploaded_file($file_tmp, $upload_path)) {
-            // Get other form data
-            $title = $_POST['title'] ?? '';
-            $category = $_POST['category'] ?? '';
-            $incident_date = $_POST['incident_date'] ?? '';
-            $user_location = $_POST['user_location'] ?? '';
-            $crime_location = $_POST['crime_location'] ?? '';
-            $description = $_POST['description'] ?? '';
+        // Handle file upload with security
+        $evidenceFile = null;
+        if (isset($_FILES['evidence']) && $_FILES['evidence']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['evidence'];
             
-            // Generate unique complaint ID
-            $complaint_id = 'CMP' . strtoupper(uniqid());
-            
-            // Insert complaint with evidence file
-            $sql = "INSERT INTO complaints (complaint_id, user_id, title, category, description, status, evidence_file, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            
-            if ($stmt === false) {
+            // Validate file size
+            if ($file['size'] > $max_file_size) {
                 header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+                echo json_encode(['success' => false, 'message' => 'File too large. Maximum size is 10MB.']);
                 exit;
             }
             
-            $user_id = $_SESSION['user']['id'] ?? 'user123';
-            $status = 'pending';
-            $created_at = date('Y-m-d H:i:s');
-            $evidence_file = $unique_filename;
+            // Validate file type using both extension and MIME
+            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowedMimeTypes = [
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'pdf' => 'application/pdf',
+                'mp4' => 'video/mp4'
+            ];
             
-            $stmt->bind_param("ssssssss", $complaint_id, $user_id, $title, $category, $description, $status, $evidence_file, $created_at);
-            
-            if ($stmt->execute()) {
+            if (!in_array($fileExtension, $allowed_types)) {
                 header('Content-Type: application/json');
-                echo json_encode([
-                    'success' => true, 
-                    'message' => 'Complaint filed successfully with evidence',
-                    'complaint_id' => $complaint_id,
-                    'evidence_file' => $unique_filename,
-                    'file_url' => 'http://localhost:8080/uploads/' . $unique_filename
-                ]);
-            } else {
-                $error = $stmt->error;
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'message' => 'Failed to file complaint: ' . $error]);
+                echo json_encode(['success' => false, 'message' => 'Invalid file type. Allowed types: ' . implode(', ', $allowed_types)]);
+                exit;
             }
             
-            $stmt->close();
-        } else {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Failed to upload file']);
+            // Check MIME type
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+            
+            if (!in_array($mimeType, array_values($allowedMimeTypes))) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Invalid file format.']);
+                exit;
+            }
+            
+            // Generate unique filename
+            $fileName = 'evidence_' . $complaint_id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
+            
+            $evidenceFile = [
+                'tmp_name' => $file['tmp_name'],
+                'name' => $fileName,
+                'extension' => $fileExtension
+            ];
         }
     } else {
-        // Handle JSON request (existing functionality)
+        // Handle JSON request
         $json = file_get_contents('php://input');
         $data = json_decode($json, true);
         
@@ -112,41 +110,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user_location = $data['user_location'] ?? '';
         $crime_location = $data['crime_location'] ?? '';
         $description = $data['description'] ?? '';
+        $priority_level = $data['priority_level'] ?? 'normal';
+        $status = $data['status'] ?? 'pending';
         
-        // Generate unique complaint ID
-        $complaint_id = 'CMP' . strtoupper(uniqid());
-        
-        // Insert complaint without evidence
-        $sql = "INSERT INTO complaints (complaint_id, user_id, title, category, description, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        
-        if ($stmt === false) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
-            exit;
-        }
-        
-        $user_id = $_SESSION['user']['id'] ?? 'user123';
-        $status = 'pending';
-        $created_at = date('Y-m-d H:i:s');
-        
-        $stmt->bind_param("sssssss", $complaint_id, $user_id, $title, $category, $description, $status, $created_at);
-        
-        if ($stmt->execute()) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => true, 
-                'message' => 'Complaint filed successfully',
-                'complaint_id' => $complaint_id
-            ]);
-        } else {
-            $error = $stmt->error;
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Failed to file complaint: ' . $error]);
-        }
-        
-        $stmt->close();
+        $evidenceFile = null;
     }
+    
+    // Generate unique complaint ID
+    $complaint_id = 'CMP' . strtoupper(uniqid());
+    $id = uniqid('', true);
+    
+    // For emergency complaints, set high priority status
+    if ($category === 'emergency' || $priority_level === 'emergency') {
+        $status = 'high_priority';
+        $priority_level = 'emergency';
+    }
+    
+    // Get user email and ID from session
+    $user_email = $_SESSION['user']['email'] ?? '';
+    $user_id = $_SESSION['user']['id'] ?? uniqid('user_', true);
+    
+    // Convert location data to JSON if provided
+    $user_location_json = null;
+    $crime_location_json = null;
+    if (!empty($user_location)) {
+        $user_location_json = is_array($user_location) ? json_encode($user_location) : $user_location;
+    }
+    if (!empty($crime_location)) {
+        $crime_location_json = is_array($crime_location) ? json_encode($crime_location) : $crime_location;
+    }
+    
+    // Handle null values for dates
+    $incident_date_val = !empty($incident_date) ? $incident_date : null;
+    
+    // For now, we'll use the user ID from session
+    $created_at = date('Y-m-d H:i:s');
+    
+    $stmt->bind_param("sssssssssssss", $id, $complaint_id, $user_id, $user_email, $title, $category, $incident_date_val, $user_location_json, $crime_location_json, $description, $status, $priority_level, $assigned_station_id, $created_at);
+    
+    if ($stmt->execute()) {
+        // Handle file upload if present
+        $evidencePath = null;
+        if ($evidenceFile) {
+            // Ensure uploads directory exists
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+            
+            $uploadPath = $upload_dir . $evidenceFile['name'];
+            
+            if (move_uploaded_file($evidenceFile['tmp_name'], $uploadPath)) {
+                $evidencePath = 'uploads/' . $evidenceFile['name'];
+            }
+        }
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Complaint filed successfully',
+            'complaint_id' => $complaint_id,
+            'evidence_file' => $evidencePath
+        ]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Failed to file complaint. Please try again.']);
+    }
+    
+    $stmt->close();
 } else {
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);

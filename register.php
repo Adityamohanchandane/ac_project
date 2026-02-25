@@ -4,10 +4,16 @@ ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Add CORS headersz
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Accept");
+// CORS: Allow same origin and localhost for development
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if ($origin && preg_match('#^https?://localhost(:[0-9]+)?$#', $origin)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_HOST']);
+}
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization');
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -20,19 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/db.php';
 session_start();
 
-// Function to send clean JSON response
-if (!function_exists('send_json_response')) {
-    function send_json_response($success, $message) {
-        // Clean any output buffer
-        ob_clean();
-        // Set headers
-        header('Content-Type: application/json');
-        header("Access-Control-Allow-Origin: *");
-        // Send response
-        echo json_encode(['success' => $success, 'message' => $message]);
-        exit;
-    }
-}
 
 // Simple debug logger (appends to debug.log). Safe for local debugging.
 function write_debug_log($msg) {
@@ -61,10 +54,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $address = trim($_POST['address'] ?? '');
 
   try {
-    if ($email === '' || $password === '' || $password2 === '') {
+    if ($email === '' || $password === '' || $password2 === '' || $fullName === '' || $mobile === '') {
       $errors[] = 'All fields are required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      $errors[] = 'Please enter a valid email address.';
+    } elseif (strlen($password) < 8) {
+      $errors[] = 'Password must be at least 8 characters long.';
     } elseif ($password !== $password2) {
       $errors[] = 'Passwords do not match.';
+    } elseif (!preg_match('/^[0-9]{10}$/', $mobile)) {
+      $errors[] = 'Please enter a valid 10-digit mobile number.';
+    } elseif (strlen($fullName) < 3) {
+      $errors[] = 'Full name must be at least 3 characters long.';
     } elseif (find_user_by_email($email)) {
       $errors[] = 'An account with that email already exists.';
     } else {
@@ -123,24 +124,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     .registration-container {
       min-height: 100vh;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 2rem;
-      background: url('registration-hero.webp') no-repeat center center fixed;
-      background-size: cover;
-      position: relative;
-    }
-    
-    .registration-container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.5);
-      z-index: 1;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     .registration-box {
@@ -150,8 +139,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       padding: 2.5rem;
       width: 100%;
       max-width: 500px;
-      position: relative;
-      z-index: 2;
     }
 
     .registration-header {
@@ -165,14 +152,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     .registration-header h2 {
-      color: #2c3e50;
+      color: #1e3c72;
       font-weight: 700;
       margin-bottom: 0.5rem;
+      font-size: 2rem;
     }
 
     .registration-header p {
-      color: #7f8c8d;
+      color: #6c757d;
       margin: 0;
+      font-size: 1.1rem;
     }
 
     .form-label {
@@ -193,17 +182,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     .btn-register {
-      background: #3498db;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
       border: none;
       padding: 0.75rem;
       font-weight: 600;
       border-radius: 8px;
+      color: white;
       transition: all 0.3s ease;
     }
 
     .btn-register:hover {
-      background: #2980b9;
+      background: linear-gradient(135deg, #162a48 0%, #1f3d6b 100%);
       transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(30, 60, 114, 0.3);
     }
 
     .login-link {

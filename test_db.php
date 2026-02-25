@@ -6,7 +6,7 @@ if ($conn->connect_error) {
 } else {
     echo "✅ Database connected successfully!";
     echo "<br>";
-    echo "Database: exam";
+    echo "Database: observx";
     echo "<br>";
     echo "Host: " . $conn->host_info;
 }

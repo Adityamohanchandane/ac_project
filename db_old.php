@@ -1,78 +1,190 @@
 <?php
 
-// Load configuration
-$config = require_once __DIR__ . '/config.php';
+// Enable output buffering and error handling for JSON responses
+
+ob_start();
+
+error_reporting(E_ALL);
+
+require_once __DIR__ . '/config.php';
+
+// Get configuration
+$config = include __DIR__ . '/config.php';
 $conn = $config['conn'];
 
-// Function to send JSON response
-function send_json_response($success, $message, $data = null) {
-    header('Content-Type: application/json');
-    $response = ['success' => $success, 'message' => $message];
-    if ($data !== null) {
-        $response['data'] = $data;
+// Function to send clean JSON response
+
+if (!function_exists('send_json_response')) {
+
+    function send_json_response($success, $message, $data = null) {
+
+        ob_clean();
+
+        header('Content-Type: application/json');
+
+        header("Access-Control-Allow-Origin: *");
+
+        $response = ['success' => $success, 'message' => $message];
+        if ($data !== null) {
+            $response['data'] = $data;
+        }
+        echo json_encode($response);
+
+        exit;
+
     }
-    echo json_encode($response);
-    exit;
+
 }
 
-// User functions
+
+
+// db.php - Database helper for MySQL connection
+
+// Uses MySQL database for user storage
+
+
+
+// Database connection
+
+$host = "localhost";
+
+$user = "root";
+
+$pass = "";
+
+$db   = "exam";
+
+
+
+$conn = new mysqli($host, $user, $pass, $db);
+
+if ($conn->connect_error) {
+
+    // Check if this is an AJAX request
+
+    $isAjax = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
+
+    if ($isAjax) {
+
+        send_json_response(false, 'Database connection failed');
+
+    } else {
+
+        die("Connection failed: " . $conn->connect_error);
+
+    }
+
+}
+
+$conn->set_charset("utf8mb4");
+
+
+
 function find_user_by_email($email) {
+
     global $conn;
-    
+
+    $email = strtolower($email);
+
     $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+
     if ($stmt === false) {
         return null;
     }
-    
+
     $stmt->bind_param("s", $email);
+
     $stmt->execute();
+
     $result = $stmt->get_result();
+
     $user = $result->fetch_assoc();
+
     $stmt->close();
-    
+
     return $user;
+
 }
+
+
 
 function verify_password($plain, $hash) {
+
     return password_verify($plain, $hash);
+
 }
 
+
+
 function add_user($email, $password, $role = 'user', $extra = []) {
+
     global $conn;
+
     
+
     $id = uniqid('', true);
+
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-    $created_at = date('Y-m-d H:i:s');
+
+    $created_at = date('c');
+
     
+
     $full_name = $extra['full_name'] ?? '';
+
     $mobile = $extra['mobile'] ?? '';
+
     $address = $extra['address'] ?? '';
+
     
+
     $stmt = $conn->prepare("INSERT INTO users (id, email, password, role, full_name, mobile, address, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+
     if ($stmt === false) {
         return null;
     }
-    
+
     $stmt->bind_param("ssssssss", $id, $email, $hashed_password, $role, $full_name, $mobile, $address, $created_at);
+
     
+
     if ($stmt->execute()) {
+
         $user = [
+
             'id' => $id,
+
             'email' => $email,
+
             'password' => $hashed_password,
+
             'role' => $role,
+
             'full_name' => $full_name,
+
             'mobile' => $mobile,
+
             'address' => $address,
+
             'created_at' => $created_at
+
         ];
+
         $stmt->close();
+
         return $user;
+
     } else {
+
         $stmt->close();
+
         return null;
+
     }
+
 }
+
+
 
 // Police station functions
 function find_police_by_email($email) {
@@ -129,8 +241,7 @@ function find_nearest_police_station($latitude, $longitude) {
             WHERE (6371 * acos(cos(radians(?)) * cos(radians(station_latitude)) * 
             cos(radians(station_longitude) - radians(?)) + 
             sin(radians(?)) * sin(radians(station_latitude)))) <= jurisdiction_radius
-            ORDER BY distance 
-            LIMIT 1";
+            ORDER BY distance LIMIT 1";
     
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("dddddd", $latitude, $longitude, $latitude, $latitude, $longitude, $latitude);
@@ -148,17 +259,22 @@ function find_nearest_police_station($latitude, $longitude) {
 }
 
 // Get complaints for specific police station
-function get_station_complaints($station_id) {
+function get_station_complaints($station_id, $limit = null) {
     global $conn;
     
-    $sql = "SELECT * FROM complaints 
-             WHERE assigned_station_id = ? 
-             ORDER BY 
-             CASE WHEN priority_level = 'emergency' THEN 0 ELSE 1 END,
-             created_at DESC";
+    $sql = "SELECT * FROM complaints WHERE assigned_station_id = ? ORDER BY 
+            CASE WHEN priority_level = 'emergency' THEN 0 ELSE 1 END,
+            created_at DESC";
     
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $station_id);
+    if ($limit) {
+        $sql .= " LIMIT ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("si", $station_id, $limit);
+    } else {
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $station_id);
+    }
+    
     $stmt->execute();
     $result = $stmt->get_result();
     
@@ -171,16 +287,21 @@ function get_station_complaints($station_id) {
     return $complaints;
 }
 
-// Get complaints for specific user
-function get_user_complaints($user_email) {
+// Get complaints for specific user email
+function get_user_complaints($user_email, $limit = null) {
     global $conn;
     
-    $sql = "SELECT * FROM complaints 
-             WHERE user_email = ? 
-             ORDER BY created_at DESC";
+    $sql = "SELECT * FROM complaints WHERE user_email = ? ORDER BY created_at DESC";
     
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $user_email);
+    if ($limit) {
+        $sql .= " LIMIT ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("si", $user_email, $limit);
+    } else {
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $user_email);
+    }
+    
     $stmt->execute();
     $result = $stmt->get_result();
     
@@ -197,29 +318,38 @@ function get_user_complaints($user_email) {
 function check_escalations() {
     global $conn;
     
-    $sql = "UPDATE complaints 
-             SET escalated = 1, escalated_at = NOW() 
-             WHERE status = 'pending' 
-             AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR) 
-             AND escalated = 0";
+    // Escalate emergency complaints older than 10 minutes
+    $emergency_time = date('Y-m-d H:i:s', strtotime('-10 minutes'));
+    $sql = "UPDATE complaints SET escalated = TRUE, escalated_at = NOW() 
+            WHERE priority_level = 'emergency' AND status NOT IN ('resolved', 'closed') 
+            AND created_at < ? AND escalated = FALSE";
     
-    $result = $conn->query($sql);
-    return $result;
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $emergency_time);
+    $stmt->execute();
+    $stmt->close();
+    
+    // Escalate normal complaints older than 48 hours
+    $normal_time = date('Y-m-d H:i:s', strtotime('-48 hours'));
+    $sql = "UPDATE complaints SET escalated = TRUE, escalated_at = NOW() 
+            WHERE priority_level = 'normal' AND status NOT IN ('resolved', 'closed') 
+            AND created_at < ? AND escalated = FALSE";
+    
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $normal_time);
+    $stmt->execute();
+    $stmt->close();
 }
 
-// Submit complaint feedback
+// Submit feedback
 function submit_complaint_feedback($complaint_id, $rating, $comment) {
     global $conn;
     
-    $sql = "UPDATE complaints 
-             SET feedback_submitted = 1, 
-                 feedback_rating = ?, 
-                 feedback_comment = ?, 
-                 feedback_date = NOW() 
-             WHERE id = ?";
+    $sql = "UPDATE complaints SET feedback_submitted = TRUE, feedback_rating = ?, feedback_comment = ?, escalated = TRUE, escalated_at = NOW() 
+            WHERE id = ?";
     
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iss", $rating, $comment, $complaint_id);
+    $stmt->bind_param("isi", $rating, $comment, $complaint_id);
     
     if ($stmt->execute()) {
         $stmt->close();
@@ -229,4 +359,5 @@ function submit_complaint_feedback($complaint_id, $rating, $comment) {
     $stmt->close();
     return false;
 }
+
 ?>

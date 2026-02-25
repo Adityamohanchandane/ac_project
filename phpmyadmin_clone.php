@@ -204,7 +204,7 @@
 
                 <!-- Database Overview -->
                 <div class="database-card">
-                    <h3><i class="bi bi-database"></i> Database: exam</h3>
+                    <h3><i class="bi bi-database"></i> Database: observx</h3>
                     <p class="text-muted">MySQL database management system</p>
                     
                     <!-- Stats Grid -->
@@ -246,7 +246,7 @@
 
                 <!-- Tables List -->
                 <div class="table-list">
-                    <h4><i class="bi bi-table"></i> Tables in database 'exam'</h4>
+                    <h4><i class="bi bi-table"></i> Tables in database 'observx'</h4>
                     
                     <div class="table-item">
                         <div>

@@ -3,11 +3,12 @@ import bodyParser from 'body-parser'
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import bcrypt from 'bcrypt'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
-const PORT = 8000
+const PORT = 3002
 
 const USERS_FILE = path.join(__dirname, 'users.json')
 const COMPLAINTS_FILE = path.join(__dirname, 'complaints.json')
@@ -15,15 +16,14 @@ const COMPLAINTS_FILE = path.join(__dirname, 'complaints.json')
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
-app.use(express.static(__dirname))
 
 // Helper functions
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex')
+async function hashPassword(password) {
+  return await bcrypt.hash(password, 10)
 }
 
-function verifyPassword(plain, hash) {
-  return hashPassword(plain) === hash
+async function verifyPassword(plain, hash) {
+  return await bcrypt.compare(plain, hash)
 }
 
 function loadUsers() {
@@ -56,7 +56,7 @@ function findUserByEmail(email) {
 }
 
 // Routes
-app.post('/register.php', (req, res) => {
+app.post('/register.php', async (req, res) => {
   const { email, password, password2, fullName, mobile, address } = req.body
 
   if (!email || !password || !password2) {
@@ -75,7 +75,7 @@ app.post('/register.php', (req, res) => {
   const newUser = {
     id: crypto.randomUUID(),
     email,
-    password: hashPassword(password),
+    password: await hashPassword(password),
     role: 'user',
     full_name: fullName,
     mobile,
@@ -90,7 +90,44 @@ app.post('/register.php', (req, res) => {
   res.json({ success: true, message: 'Registration successful' })
 })
 
-app.post('/login.php', (req, res) => {
+// File complaint route
+app.post('/file_complaint.php', (req, res) => {
+  // For now, we'll simulate a simple complaint filing
+  // In production, this would connect to a database
+  
+  const { title, category, description, incident_date, user_location, crime_location, priority_level } = req.body
+
+  if (!title || !category || !description) {
+    return res.json({ success: false, message: 'Title, category, and description are required.' })
+  }
+
+  const complaints = loadComplaints()
+  const newComplaint = {
+    id: crypto.randomUUID(),
+    complaint_id: 'CMP' + Date.now(),
+    title,
+    category,
+    description,
+    incident_date: incident_date || new Date().toISOString().split('T')[0],
+    user_location: user_location || null,
+    crime_location: crime_location || null,
+    priority_level: priority_level || 'normal',
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    user_id: 'user123', // This would come from session in production
+  }
+
+  complaints.push(newComplaint)
+  saveComplaints(complaints)
+
+  res.json({ 
+    success: true, 
+    message: 'Complaint filed successfully',
+    complaint_id: newComplaint.complaint_id
+  })
+})
+
+app.post('/login.php', async (req, res) => {
   const { email, password } = req.body
 
   if (!email || !password) {
@@ -103,7 +140,7 @@ app.post('/login.php', (req, res) => {
     return res.json({ success: false, message: 'No account found with that email.' })
   }
 
-  if (!verifyPassword(password, user.password)) {
+  if (!(await verifyPassword(password, user.password))) {
     return res.json({ success: false, message: 'Incorrect password.' })
   }
 
@@ -185,6 +222,19 @@ app.get('/get-all-complaints', (req, res) => {
   res.json({ success: true, complaints })
 })
 
+// Get complaints (with optional user filter)
+app.get('/get_complaints.php', (req, res) => {
+  const complaints = loadComplaints()
+  const { user_email } = req.query
+  
+  // Filter by user email if provided
+  const filteredComplaints = user_email 
+    ? complaints.filter(c => c.user_email === user_email)
+    : complaints
+    
+  res.json({ success: true, complaints: filteredComplaints })
+})
+
 // Get complaints by user
 app.get('/user-complaints/:user_id', (req, res) => {
   const { user_id } = req.params
@@ -234,6 +284,9 @@ app.post('/update-complaint-status', (req, res) => {
   saveComplaints(complaints)
   res.json({ success: true, message: 'Complaint updated' })
 })
+
+// Serve static files (HTML, CSS, JS, images)
+app.use(express.static(__dirname))
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`)

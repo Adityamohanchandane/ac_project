@@ -108,7 +108,7 @@ $table = $_GET['table'] ?? '';
                                 <div class="card-body">
                                     <table class="table table-sm">
                                         <tr><td><strong>Server:</strong></td><td>localhost</td></tr>
-                                        <tr><td><strong>Database:</strong></td><td>exam</td></tr>
+                                        <tr><td><strong>Database:</strong></td><td>observx</td></tr>
                                         <tr><td><strong>User:</strong></td><td>root@localhost</td></tr>
                                         <tr><td><strong>MySQL Version:</strong></td><td><?php echo $conn->server_info; ?></td></tr>
                                         <tr><td><strong>PHP Version:</strong></td><td><?php echo phpversion(); ?></td></tr>
@@ -139,7 +139,7 @@ $table = $_GET['table'] ?? '';
 
                     <div class="card mt-4">
                         <div class="card-header">
-                            <h5><i class="bi bi-table"></i> Tables in 'exam' Database</h5>
+                            <h5><i class="bi bi-table"></i> Tables in 'observx' Database</h5>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">

@@ -3,7 +3,7 @@
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db   = "exam";
+$db   = "observx";
 
 // Create connection with MySQLi
 $conn = new mysqli($host, $user, $pass, $db);

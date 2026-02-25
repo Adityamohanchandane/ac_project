@@ -8,7 +8,7 @@ require_once __DIR__ . '/db.php';
 
 echo "<h2>🗄️ Database Test</h2>";
 try {
-    $conn = new mysqli("localhost", "root", "", "exam");
+    $conn = new mysqli("localhost", "root", "", "observx");
     if ($conn->connect_error) {
         echo "<p>❌ Database Error: " . $conn->connect_error . "</p>";
     } else {
