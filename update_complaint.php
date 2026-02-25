@@ -5,7 +5,8 @@ ini_set('display_errors', 1);
 
 // CORS: allow Vite dev origin with credentials
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin && preg_match('#^https?://localhost(:[0-9]+)?$#', $origin)) {
+// Allow localhost for development and the production domain
+if ($origin && (preg_match('#^https?://localhost(:[0-9]+)?$#', $origin) || strpos($origin, 'https://observx.netlify.app') === 0)) {
     header("Access-Control-Allow-Origin: {$origin}");
     header('Access-Control-Allow-Credentials: true');
 } else {

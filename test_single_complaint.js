@@ -2,7 +2,7 @@
 import fetch from 'node-fetch';
 
 async function testSingleComplaintAPI() {
-  const baseUrl = 'http://localhost:3002';
+  const baseUrl = 'https://observx.netlify.app/adii';
   
   console.log('Testing single complaint API...\n');
   

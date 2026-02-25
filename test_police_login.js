@@ -5,7 +5,7 @@ async function testPoliceLogin() {
   try {
     console.log('Testing police login...\n');
     
-    const response = await fetch('http://localhost:3002/police-login.php', {
+    const response = await fetch('https://observx.netlify.app/adii/police-login.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

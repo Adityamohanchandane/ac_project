@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 
 console.log('Testing if the main page loads...');
 
-fetch('http://localhost:3002/')
+fetch('https://observx.netlify.app/adii/')
   .then(res => {
     console.log('Main page status:', res.status);
     return res.text();
