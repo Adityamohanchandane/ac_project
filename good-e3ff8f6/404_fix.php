@@ -135,7 +135,7 @@ echo "<div class='grid'>";
 
 echo "<div class='card'>";
 echo "<h3>Example 1: Registration</h3>";
-echo "<p><strong>Wrong:</strong> <code>http://localhost/adii/register.php</code></p>";
+echo "<p><strong>Wrong:</strong> <code>https://observx.netlify.app/adii/register.php</code></p>";
 echo "<p><strong>Correct:</strong> <code>http://localhost:8080/register.php</code></p>";
 echo "<p><a href='http://localhost:8080/register.php' class='btn btn-success'>Test Correct URL</a></p>";
 echo "</div>";

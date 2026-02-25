@@ -56,7 +56,7 @@ function test_endpoint($url, $method = 'GET', $data = null, $description = '') {
     echo "</div>";
 }
 
-$base_url = "http://localhost/adii";
+$base_url = "https://observx.netlify.app/adii";
 
 // Test all endpoints
 echo "<h2>📡 Testing All API Endpoints</h2>";

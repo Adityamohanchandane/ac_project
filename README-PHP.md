@@ -16,7 +16,7 @@ How to test locally (Windows):
 php -S localhost:8000
 ```
 
-3. Open http://localhost:8000/register.php to create a test user, then visit http://localhost:8000/login.php to login.
+3. Open https://observx.netlify.app/adii/register.php to create a test user, then visit https://observx.netlify.app/adii/login.php to login.
 
 Notes:
 - This is a simple demo using `users.json` for storage. For production, switch to a proper database and secure configuration.

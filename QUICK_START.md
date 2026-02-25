@@ -20,7 +20,7 @@ chmod 644 *.php *.html *.css *.js
 ## Step 1: Database Initialization (IMPORTANT!)
 
 ### Method A: Automatic Setup (Recommended)
-1. Open browser: `http://localhost/adii/create_db.php`
+1. Open browser: `https://observx.netlify.app/adii/create_db.php`
 2. Wait for setup to complete
 3. Should see success messages for each table
 4. Note the test credentials displayed
@@ -65,7 +65,7 @@ chmod 755 uploads
 ## Step 4: Test the Installation
 
 ### Test 1: Database Connection
-Open: `http://localhost/adii/setup.php`
+Open: `https://observx.netlify.app/adii/setup.php`
 
 Should see:
 - ✅ PHP: Running
@@ -74,7 +74,7 @@ Should see:
 - ✅ Tables: users, complaints, police_stations, sonu
 
 ### Test 2: User Registration
-1. Go to: `http://localhost/adii/register.php`
+1. Go to: `https://observx.netlify.app/adii/register.php`
 2. Fill form with:
    - Full Name: Test User
    - Email: testuser@example.com
@@ -86,7 +86,7 @@ Should see:
 4. Should see success message
 
 ### Test 3: User Login
-1. Go to: `http://localhost/adii/login.php`
+1. Go to: `https://observx.netlify.app/adii/login.php`
 2. Use either:
    - Email: test@example.com
    - Email: testuser@example.com (if just created)
@@ -114,22 +114,22 @@ Using curl or Postman:
 
 #### Get All Complaints
 ```bash
-curl http://localhost/adii/get_complaints.php
+curl https://observx.netlify.app/adii/get_complaints.php
 ```
 
 #### Get User Complaints
 ```bash
-curl "http://localhost/adii/get_complaints.php?user_email=test@example.com"
+curl "https://observx.netlify.app/adii/get_complaints.php?user_email=test@example.com"
 ```
 
 #### Get Single Complaint
 ```bash
-curl "http://localhost/adii/get_complaint.php?id=COMPLAINT_ID"
+curl "https://observx.netlify.app/adii/get_complaint.php?id=COMPLAINT_ID"
 ```
 
 #### Update Complaint Status
 ```bash
-curl -X POST http://localhost/adii/update_complaint.php \
+curl -X POST https://observx.netlify.app/adii/update_complaint.php \
   -H "Content-Type: application/json" \
   -d '{"complaint_id":"CMPxxxxxx","status":"investigating"}'
 ```

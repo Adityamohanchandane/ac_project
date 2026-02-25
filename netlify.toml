@@ -7,15 +7,41 @@
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
 [[redirects]]
+  from = "/login.php"
+  to = "/.netlify/functions/login"
+  status = 200
+
+[[redirects]]
+  from = "/police-login.php"
+  to = "/.netlify/functions/police-login"
+  status = 200
+
+[[redirects]]
+  from = "/get_complaints.php"
+  to = "/.netlify/functions/get_complaints"
+  status = 200
+
+[[redirects]]
+  from = "/get_complaint.php"
+  to = "/.netlify/functions/get_complaint"
+  status = 200
+
+[[redirects]]
+  from = "/file_complaint.php"
+  to = "/.netlify/functions/file_complaint"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[functions]
-  directory = "netlify/functions"

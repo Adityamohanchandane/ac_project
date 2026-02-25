@@ -23,7 +23,7 @@
             
             try {
                 // Try without CORS first
-                let response = await fetch('http://localhost/adii/get_complaints.php');
+                let response = await fetch('https://observx.netlify.app/adii/get_complaints.php');
                 let data = await response.json();
                 
                 console.log('Data loaded:', data);

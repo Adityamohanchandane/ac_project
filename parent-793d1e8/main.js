@@ -179,7 +179,7 @@ async function checkAuth() {
   if (!supabase) {
     // Use PHP session check instead of Supabase
     try {
-      const res = await fetch('http://localhost:8080/check_auth.php', {
+      const res = await fetch('https://observx.netlify.app/adii/check_auth.php', {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
@@ -846,7 +846,7 @@ async function loadUserComplaints() {
   if (!container) return
   
   try {
-    const res = await fetch('http://localhost:8080/get_complaints.php', {
+    const res = await fetch('https://observx.netlify.app/adii/get_complaints.php', {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
@@ -1049,7 +1049,7 @@ async function loadComplaintDetail(complaintId) {
   if (!container) return
   
   try {
-    const res = await fetch(`http://localhost/adii/get_complaint.php?id=${complaintId}`, {
+    const res = await fetch(`https://observx.netlify.app/adii/get_complaint.php?id=${complaintId}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
@@ -1216,9 +1216,9 @@ async function handleUserRegister(form) {
     const tried = []
     const candidates = []
     // Try XAMPP URLs for PHP processing
-    candidates.push('http://localhost:8080/register.php')
+    candidates.push('https://observx.netlify.app/adii/register.php')
     candidates.push('http://127.0.0.1:8080/register.php')
-    candidates.push('http://localhost/register.php')
+    candidates.push('https://observx.netlify.app/adii/register.php')
     candidates.push('http://127.0.0.1/register.php')
 
     let lastError = null
@@ -1292,9 +1292,9 @@ async function handleUserLogin(form) {
 
     // Try multiple login endpoints
     const candidates = [
-      'http://localhost:8080/login.php',
+      'https://observx.netlify.app/adii/login.php',
       'http://127.0.0.1:8080/login.php',
-      'http://localhost/login.php',
+      'https://observx.netlify.app/adii/login.php',
       'http://127.0.0.1/login.php'
     ]
     
@@ -1359,7 +1359,7 @@ async function handlePoliceLogin(form) {
     payload.append('email', email)
     payload.append('password', password)
 
-    const res = await fetch('http://localhost:8080/police-login.php', {
+    const res = await fetch('https://observx.netlify.app/adii/police-login.php', {
       method: 'POST',
       headers: { 
         'Accept': 'application/json',
@@ -1457,7 +1457,7 @@ async function handleComplaintSubmit(form) {
 
     console.log('Submitting complaint:', payload)
     
-    const res = await fetch('http://localhost:8080/file_complaint.php', {
+    const res = await fetch('https://observx.netlify.app/adii/file_complaint.php', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',

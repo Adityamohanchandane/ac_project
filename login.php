@@ -1,11 +1,11 @@
 <?php
 // CORS: Allow same origin and localhost for development
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin && preg_match('#^https?://localhost(:[0-9]+)?$#', $origin)) {
-    header("Access-Control-Allow-Origin: {$origin}");
-    header('Access-Control-Allow-Credentials: true');
+if ($origin && (preg_match('#^https?://localhost(:[0-9]+)?$#', $origin) || strpos($origin, 'https://observx.netlify.app') === 0)) {
+  header("Access-Control-Allow-Origin: {$origin}");
+  header('Access-Control-Allow-Credentials: true');
 } else {
-    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_HOST']);
+  header('Access-Control-Allow-Origin: *');
 }
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Accept, Authorization");

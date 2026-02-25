@@ -3,10 +3,10 @@
  * e2e_test.php
  * Automated end-to-end test for registration -> DB save -> login -> dashboard.
  * Usage: php e2e_test.php [base_url]
- * Example: php e2e_test.php http://localhost/adii
+ * Example: php e2e_test.php https://observx.netlify.app/adii
  */
 
-$base = $argv[1] ?? 'http://localhost/adii';
+$base = $argv[1] ?? 'https://observx.netlify.app/adii';
 if (substr($base, -1) === '/') $base = rtrim($base, '/');
 
 // Generate test user data

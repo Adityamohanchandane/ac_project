@@ -60,7 +60,7 @@
 
 ### Option 1: Using create_db.php (Recommended)
 1. Ensure MySQL is running on localhost with default credentials (root:empty password)
-2. Navigate to `http://localhost/adii/create_db.php` in your browser
+2. Navigate to `https://observx.netlify.app/adii/create_db.php` in your browser
 3. Wait for all tables and test data to be created
 4. Check the output for success messages
 

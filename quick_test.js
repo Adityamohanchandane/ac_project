@@ -11,7 +11,7 @@ async function testComplaintView() {
   for (const testId of testIds) {
     console.log(`\nTesting ID: ${testId}`);
     try {
-      const response = await fetch(`http://localhost:3002/get_complaint.php?id=${testId}`);
+      const response = await fetch(`https://observx.netlify.app/adii/get_complaint.php?id=${testId}`);
       console.log('Status:', response.status);
       const result = await response.json();
       console.log('Success:', result.success);
