@@ -60,8 +60,10 @@ const initLoader = () => {
 }
 
 // Initialize scroll animations
-// Backend base URL - auto-detect for deployment
-const backendBase = window.location.origin;
+// Backend base URL - auto-detect for deployment (supports subdirectory installs)
+const currentPath = window.location.pathname || '/'
+const basePath = currentPath.substring(0, currentPath.lastIndexOf('/')) || ''
+const backendBase = window.location.origin + basePath
 
 const initScrollAnimations = () => {
   const animateOnScroll = () => {
@@ -1661,6 +1663,8 @@ function renderComplaintDetail(complaint) {
   const container = document.getElementById('complaintDetailContainer')
   if (!container) return
   
+  const showFeedbackSection = complaint.status === 'resolved' && !complaint.feedback_submitted
+
   const html = `
     <div class="card">
       <div class="card-header bg-primary text-white">
@@ -1701,11 +1705,82 @@ function renderComplaintDetail(complaint) {
             </button>
           </div>
         </div>
+
+        ${showFeedbackSection ? `
+        <hr class="my-4">
+        <div class="mt-3">
+          <h5>Rate Your Experience</h5>
+          <form id="feedbackForm" class="mt-2">
+            <div class="mb-2">
+              <label class="form-label">Rating</label>
+              <select class="form-select form-select-sm" id="feedbackRating" required>
+                <option value="">Select rating</option>
+                <option value="5">5 - Excellent</option>
+                <option value="4">4 - Good</option>
+                <option value="3">3 - Average</option>
+                <option value="2">2 - Poor</option>
+                <option value="1">1 - Very Poor</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Comments (optional)</label>
+              <textarea class="form-control" id="feedbackComment" rows="3" placeholder="Share details about your experience"></textarea>
+            </div>
+            <div id="feedbackAlert" class="mb-2"></div>
+            <button type="submit" class="btn btn-sm btn-primary">Submit Feedback</button>
+          </form>
+        </div>
+        ` : ''}
       </div>
     </div>
   `
   
   container.innerHTML = html
+
+  // Attach feedback submit handler if form is present
+  const feedbackForm = document.getElementById('feedbackForm')
+  if (feedbackForm) {
+    feedbackForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const rating = parseInt(document.getElementById('feedbackRating').value, 10)
+      const comment = document.getElementById('feedbackComment').value
+      const alertDiv = document.getElementById('feedbackAlert')
+
+      if (!rating || rating < 1 || rating > 5) {
+        alertDiv.innerHTML = '<div class="alert alert-danger">Please select a rating between 1 and 5.</div>'
+        return
+      }
+
+      try {
+        alertDiv.innerHTML = ''
+        const res = await fetch(`${backendBase}/feedback.php`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            complaint_id: complaint.complaint_id,
+            rating,
+            comment,
+          }),
+          mode: 'cors',
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.success) {
+          alertDiv.innerHTML = `<div class="alert alert-danger">${data.message || 'Failed to submit feedback'}</div>`
+          return
+        }
+
+        alertDiv.innerHTML = '<div class="alert alert-success">Thank you for your feedback.</div>'
+        feedbackForm.querySelector('button[type="submit"]').disabled = true
+      } catch (error) {
+        console.error('Feedback error:', error)
+        alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
+      }
+    })
+  }
 }
 
 function renderViewComplaints() {
@@ -1960,10 +2035,20 @@ async function handlePoliceLogin(form) {
 
     alertDiv.innerHTML = '<div class="alert alert-success">Login successful! Redirecting...</div>'
     
-    // Set current user from login response
-    currentUser = {
-      email: email,
-      role: 'police'
+    // Set current user from login response (include station info when available)
+    if (json.police) {
+      currentUser = {
+        id: json.police.id,
+        email: json.police.email,
+        role: 'police',
+        police_id: json.police.police_id,
+        station_name: json.police.station_name,
+      }
+    } else {
+      currentUser = {
+        email,
+        role: 'police',
+      }
     }
     currentUserRole = 'police'
     
@@ -2038,8 +2123,8 @@ async function handleComplaintSubmit(form) {
       formData.append('title', title)
       formData.append('category', category)
       formData.append('incident_date', incidentDate)
-      formData.append('user_location', userLocation)
-      formData.append('crime_location', crimeLocationData)
+      formData.append('user_location', JSON.stringify(userLocation))
+      formData.append('crime_location', JSON.stringify(crimeLocationData))
       formData.append('description', description)
       
       res = await fetch(`${backendBase}/file_complaint.php`, {
@@ -2134,21 +2219,31 @@ async function handleUpdateComplaint(form) {
 async function logout() {
   try {
     setLoading(true)
-    const { error } = await supabase.auth.signOut()
-    
-    if (error) throw error
-    
+
+    // Prefer PHP session logout in this deployment
+    try {
+      await fetch(`${backendBase}/logout.php`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+      })
+    } catch (e) {
+      console.warn('Backend logout request failed:', e)
+    }
+
+    // Clear in-memory user state
     currentUser = null
     currentUserRole = null
     updateAuthMenu()
-    
+
     showNotification('success', 'You have been successfully logged out.')
-    
+
     // Redirect to home after a short delay
     setTimeout(() => {
       window.location.hash = '/'
     }, 1000)
-    
   } catch (error) {
     console.error('Logout error:', error)
     showNotification('error', 'Failed to log out. Please try again.')
@@ -2162,50 +2257,15 @@ window.logout = logout
 async function loadComplaints() {
   if (!currentUser) return
 
-  const container = currentUserRole === 'police'
-    ? document.getElementById('complaintsTableContainer')
-    : document.getElementById('myComplaintsContainer')
-
-  if (!container) return
-
-  const statusFilter = document.getElementById('statusFilter')?.value || ''
-  const categoryFilter = document.getElementById('categoryFilter')?.value || ''
-
   try {
-    let query = supabase.from('complaints').select('*')
-
-    if (currentUserRole === 'user') {
-      query = query.eq('user_id', currentUser.id)
-    }
-
-    if (statusFilter) {
-      query = query.eq('status', statusFilter)
-    }
-
-    if (categoryFilter) {
-      query = query.eq('category', categoryFilter)
-    }
-
-    query = query.order('created_at', { ascending: false })
-
-    const { data: complaints, error } = await query
-
-    if (error) throw error
-
-    if (!complaints || complaints.length === 0) {
-      container.innerHTML = '<div class="alert alert-info">No complaints found</div>'
-      return
-    }
-
+    // Delegate to PHP-backed loaders instead of Supabase
     if (currentUserRole === 'police') {
-      renderPoliceComplaintsTable(complaints)
+      await loadPoliceComplaints()
     } else {
-      renderUserComplaints(complaints)
+      await loadUserComplaints()
     }
-
-    updateStats(complaints)
   } catch (error) {
-    container.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
+    console.error('Error loading complaints:', error)
   }
 }
 

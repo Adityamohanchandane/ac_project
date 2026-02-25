@@ -116,7 +116,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $evidenceFile = null;
     }
     
-    // Generate unique complaint ID
+    // Basic validation
+    if (empty($title) || empty($category) || empty($description)) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Title, category and description are required.']);
+        exit;
+    }
+
+    // Generate unique complaint ID and internal ID
     $complaint_id = 'CMP' . strtoupper(uniqid());
     $id = uniqid('', true);
     
@@ -130,23 +137,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_email = $_SESSION['user']['email'] ?? '';
     $user_id = $_SESSION['user']['id'] ?? uniqid('user_', true);
     
-    // Convert location data to JSON if provided
+    // Convert location data to JSON strings
     $user_location_json = null;
     $crime_location_json = null;
+    $user_location_arr = null;
+    $crime_location_arr = null;
+
     if (!empty($user_location)) {
-        $user_location_json = is_array($user_location) ? json_encode($user_location) : $user_location;
+        if (is_array($user_location)) {
+            $user_location_arr = $user_location;
+            $user_location_json = json_encode($user_location);
+        } else {
+            $decoded = json_decode($user_location, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $user_location_arr = $decoded;
+                $user_location_json = json_encode($decoded);
+            } else {
+                $user_location_json = $user_location;
+            }
+        }
     }
+
     if (!empty($crime_location)) {
-        $crime_location_json = is_array($crime_location) ? json_encode($crime_location) : $crime_location;
+        if (is_array($crime_location)) {
+            $crime_location_arr = $crime_location;
+            $crime_location_json = json_encode($crime_location);
+        } else {
+            $decoded = json_decode($crime_location, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $crime_location_arr = $decoded;
+                $crime_location_json = json_encode($decoded);
+            } else {
+                $crime_location_json = $crime_location;
+            }
+        }
     }
     
     // Handle null values for dates
     $incident_date_val = !empty($incident_date) ? $incident_date : null;
     
-    // For now, we'll use the user ID from session
+    // Determine nearest police station from location (if available)
+    $assigned_station_id = null;
+    $lat = null;
+    $lng = null;
+
+    $location_for_assignment = $crime_location_arr ?: $user_location_arr;
+    if (is_array($location_for_assignment)) {
+        if (isset($location_for_assignment['latitude'])) {
+            $lat = $location_for_assignment['latitude'];
+        } elseif (isset($location_for_assignment['lat'])) {
+            $lat = $location_for_assignment['lat'];
+        }
+
+        if (isset($location_for_assignment['longitude'])) {
+            $lng = $location_for_assignment['longitude'];
+        } elseif (isset($location_for_assignment['lng'])) {
+            $lng = $location_for_assignment['lng'];
+        }
+    }
+
+    if ($lat !== null && $lng !== null) {
+        $station = find_nearest_police_station((float)$lat, (float)$lng);
+        if ($station && isset($station['id'])) {
+            $assigned_station_id = $station['id'];
+        }
+    }
+
+    // Timestamps
     $created_at = date('Y-m-d H:i:s');
-    
-    $stmt->bind_param("sssssssssssss", $id, $complaint_id, $user_id, $user_email, $title, $category, $incident_date_val, $user_location_json, $crime_location_json, $description, $status, $priority_level, $assigned_station_id, $created_at);
+
+    // Insert into complaints table
+    $sql = "INSERT INTO complaints (
+                id,
+                complaint_id,
+                user_id,
+                user_email,
+                title,
+                category,
+                incident_date,
+                user_location,
+                crime_location,
+                description,
+                status,
+                priority_level,
+                assigned_station_id,
+                created_at,
+                updated_at
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL
+            )";
+
+    $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+        exit;
+    }
+
+    $stmt->bind_param(
+        "ssssssssssssss",
+        $id,
+        $complaint_id,
+        $user_id,
+        $user_email,
+        $title,
+        $category,
+        $incident_date_val,
+        $user_location_json,
+        $crime_location_json,
+        $description,
+        $status,
+        $priority_level,
+        $assigned_station_id,
+        $created_at
+    );
     
     if ($stmt->execute()) {
         // Handle file upload if present
@@ -159,9 +263,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $uploadPath = $upload_dir . $evidenceFile['name'];
             
-            if (move_uploaded_file($evidenceFile['tmp_name'], $uploadPath)) {
-                $evidencePath = 'uploads/' . $evidenceFile['name'];
-            }
+            // Best-effort save of evidence (path not stored in DB yet)
+            @move_uploaded_file($evidenceFile['tmp_name'], $uploadPath);
+            $evidencePath = 'uploads/' . $evidenceFile['name'];
         }
         
         header('Content-Type: application/json');

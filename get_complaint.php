@@ -26,10 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
     
-    $sql = "SELECT id, complaint_id, title, category, description, status, created_at, updated_at 
-             FROM complaints 
-             WHERE complaint_id = ? 
-             ORDER BY created_at DESC";
+    // Fetch full complaint record so the frontend has everything it needs
+    $sql = "SELECT * FROM complaints WHERE complaint_id = ? LIMIT 1";
     
     $stmt = $conn->prepare($sql);
     
@@ -54,16 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => true,
-        'complaint' => [
-            'id' => $complaint['id'],
-            'complaint_id' => $complaint['complaint_id'],
-            'title' => $complaint['title'],
-            'category' => $complaint['category'],
-            'description' => $complaint['description'],
-            'status' => $complaint['status'],
-            'created_at' => $complaint['created_at'],
-            'updated_at' => $complaint['updated_at']
-        ]
+        'complaint' => $complaint
     ]);
     
     $stmt->close();

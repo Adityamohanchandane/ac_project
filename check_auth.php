@@ -15,21 +15,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// Check authentication status
 session_start();
 
-require_once __DIR__ . '/db.php';
+// Unified auth check for both citizens and police
+$response = [
+    'authenticated' => false,
+    'user' => null,
+];
 
-if (isset($_SESSION['user'])) {
-    header('Content-Type: application/json');
-    echo json_encode([
-        'authenticated' => true,
-        'user' => $_SESSION['user']
-    ]);
-} else {
-    header('Content-Type: application/json');
-    echo json_encode([
-        'authenticated' => false
-    ]);
+// Citizen session
+if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+    $user = $_SESSION['user'];
+    // Ensure a role field exists for frontend routing
+    if (empty($user['role'])) {
+        $user['role'] = 'user';
+    }
+
+    $response['authenticated'] = true;
+    $response['user'] = $user;
 }
+// Police session (used by police dashboard)
+elseif (isset($_SESSION['police']) && is_array($_SESSION['police'])) {
+    $police = $_SESSION['police'];
+
+    $response['authenticated'] = true;
+    $response['user'] = [
+        'id' => $police['id'] ?? null,
+        'email' => $police['email'] ?? '',
+        'role' => 'police',
+        // Expose station identifiers for frontend filtering
+        'station_id' => $police['id'] ?? null,
+        'police_id' => $police['police_id'] ?? null,
+        'station_name' => $police['station_name'] ?? null,
+    ];
+}
+
+header('Content-Type: application/json');
+echo json_encode($response);
 ?>
