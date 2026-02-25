@@ -4,13 +4,18 @@ ErrorDocument 404 /404_fix.php
 # Enable URL rewriting
 RewriteEngine On
 
+# Don't rewrite actual PHP files
+RewriteCond %{REQUEST_FILENAME} \.php$
+RewriteRule ^ - [L]
+
 # Common URL fixes
 RewriteRule ^adii/(.*)$ http://localhost:8080/$1 [R=301,L]
 RewriteRule ^ac_project/(.*)$ http://localhost:8080/$1 [R=301,L]
 
-# Handle common missing files
+# Handle common missing files (but not PHP files)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !\.php$
 RewriteRule ^(.*)$ 404_fix.php [L]
 
 # Security headers

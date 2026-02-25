@@ -21,11 +21,17 @@ function find_user_by_email($email) {
     
     $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
     if ($stmt === false) {
+        error_log("Failed to prepare find_user_by_email statement: " . $conn->error);
         return null;
     }
     
     $stmt->bind_param("s", $email);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        error_log("Failed to execute find_user_by_email query: " . $stmt->error);
+        $stmt->close();
+        return null;
+    }
+    
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
     $stmt->close();
@@ -50,6 +56,7 @@ function add_user($email, $password, $role = 'user', $extra = []) {
     
     $stmt = $conn->prepare("INSERT INTO users (id, email, password, role, full_name, mobile, address, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     if ($stmt === false) {
+        error_log("Failed to prepare statement: " . $conn->error);
         return null;
     }
     
@@ -69,6 +76,7 @@ function add_user($email, $password, $role = 'user', $extra = []) {
         $stmt->close();
         return $user;
     } else {
+        error_log("Failed to execute user insert: " . $stmt->error);
         $stmt->close();
         return null;
     }

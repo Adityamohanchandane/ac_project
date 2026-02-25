@@ -159,7 +159,8 @@ const pages = {
 }
 
 window.addEventListener('hashchange', () => {
-  const route = location.hash.slice(2) || 'home'
+  const hash = location.hash.slice(2) || 'home'
+  const route = hash.split('?')[0] // Remove query parameters
   loadPage(route)
 })
 
@@ -168,7 +169,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     setLoading(true)
     await checkAuth()
-    const route = location.hash.slice(2) || 'home'
+    const hash = location.hash.slice(2) || 'home'
+    const route = hash.split('?')[0] // Remove query parameters
     await loadPage(route)
     initApp()
   } catch (error) {
@@ -1081,11 +1083,12 @@ async function loadUserComplaints() {
   if (!container) return
   
   try {
-    // Filter by current user's email
-    const userEmail = currentUser?.email;
-    const url = userEmail 
-      ? `${backendBase}/get_complaints.php?user_email=${encodeURIComponent(userEmail)}`
-      : `${backendBase}/get_complaints.php`;
+    // For now, use the hardcoded user_id since all complaints are saved with "user123"
+    // In production, this would come from the logged-in user session
+    const userId = "user123";
+    const url = `${backendBase}/get_complaints.php?user_id=${encodeURIComponent(userId)}`;
+    
+    console.log('Loading complaints from:', url);
     
     const res = await fetch(url, {
       method: 'GET',
@@ -1094,19 +1097,46 @@ async function loadUserComplaints() {
       },
       mode: 'cors'
     })
-    
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+    }
+
     const data = await res.json()
-    
+    console.log('Complaints response:', data);
+
     if (!data.success) {
       throw new Error(data.message || 'Failed to load complaints')
     }
+
+    allComplaints = data.complaints || []
     
-    allComplaints = data.complaints
-    renderUserComplaintsList(allComplaints)
+    if (allComplaints.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-5">
+          <i class="bi bi-inbox display-1 text-muted"></i>
+          <h3 class="mt-3">No complaints found</h3>
+          <p class="text-muted">You haven't filed any complaints yet.</p>
+          <a href="#/file-complaint" class="btn btn-primary">File Your First Complaint</a>
+        </div>
+      `
+      return
+    }
+
+    // Sort by creation date (newest first)
+    allComplaints.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    
+    renderUserComplaints(allComplaints)
+    updateStats(allComplaints)
     
   } catch (error) {
-    console.error('Error loading complaints:', error)
-    container.innerHTML = `<div class="alert alert-danger">Failed to load complaints: ${error.message}</div>`
+    console.error('Error loading user complaints:', error)
+    container.innerHTML = `
+      <div class="alert alert-danger">
+        <strong>Error:</strong> ${error.message}
+        <br><small>Please try again or contact support if the problem persists.</small>
+      </div>
+    `
   }
 }
 
@@ -1188,11 +1218,11 @@ async function loadDashboardComplaints() {
   if (!container) return;
   
   try {
-    // Filter by current user's email
-    const userEmail = currentUser?.email;
-    const url = userEmail 
-      ? `${backendBase}/get_complaints.php?user_email=${encodeURIComponent(userEmail)}`
-      : `${backendBase}/get_complaints.php`;
+    // For now, use the hardcoded user_id since all complaints are saved with "user123"
+    const userId = "user123";
+    const url = `${backendBase}/get_complaints.php?user_id=${encodeURIComponent(userId)}`;
+    
+    console.log('Loading dashboard complaints from:', url);
     
     const res = await fetch(url, {
       method: 'GET',
@@ -1203,6 +1233,7 @@ async function loadDashboardComplaints() {
     });
     
     const data = await res.json();
+    console.log('Dashboard complaints response:', data);
     
     if (!data.success) {
       throw new Error(data.message || 'Failed to load complaints');
@@ -1608,8 +1639,11 @@ function renderPoliceDashboard() {
 
 function renderViewComplaint() {
   // Temporarily remove login requirement for testing
-  const urlParams = new URLSearchParams(window.location.search)
+  const hash = window.location.hash
+  const urlParams = new URLSearchParams(hash.split('?')[1] || '')
   const complaintId = urlParams.get('id') || ''
+  
+  console.log('Viewing complaint with ID:', complaintId)
   
   if (!complaintId) {
     return `<div class="container mt-5"><div class="alert alert-danger">No complaint ID provided.</div></div>`
@@ -1623,6 +1657,7 @@ function renderViewComplaint() {
       <div id="complaintDetailContainer">
         <div class="loading">
           <div class="spinner-border" role="status"></div>
+          <span class="ms-2">Loading complaint details...</span>
         </div>
       </div>
     </div>
@@ -1697,7 +1732,7 @@ function renderComplaintDetail(complaint) {
         
         <div class="row">
           <div class="col-md-6">
-            <strong>Last Updated:</strong> ${new Date(complaint.updated_at).toLocaleDateString()}
+            <strong>Last Updated:</strong> ${complaint.updated_at ? new Date(complaint.updated_at).toLocaleDateString() : new Date(complaint.created_at).toLocaleDateString()}
           </div>
           <div class="col-md-6 text-end">
             <button class="btn btn-outline-secondary" onclick="window.print()">
@@ -2073,6 +2108,22 @@ async function handleComplaintSubmit(form) {
   const evidenceFile = document.getElementById('evidenceFile').files[0]
   const alertDiv = document.getElementById('complaintAlert')
 
+  // Client-side validation
+  if (!title || !category || !description) {
+    alertDiv.innerHTML = `<div class="alert alert-danger">Please fill in all required fields (Title, Category, and Description).</div>`
+    return
+  }
+
+  if (title.length < 5) {
+    alertDiv.innerHTML = `<div class="alert alert-danger">Title must be at least 5 characters long.</div>`
+    return
+  }
+
+  if (description.length < 20) {
+    alertDiv.innerHTML = `<div class="alert alert-danger">Description must be at least 20 characters long.</div>`
+    return
+  }
+
   try {
     // Parse user location from data attribute (optional for now)
     let userLocation = null
@@ -2096,18 +2147,18 @@ async function handleComplaintSubmit(form) {
 
     // Crime location (basic parsing - can be extended with geocoding)
     const crimeLocationData = {
-      address: crimeLocation,
+      address: crimeLocation || "Not specified",
       captured_at: new Date().toISOString()
     }
 
     // Submit to backend with location data
     const payload = {
-      title,
-      category,
+      title: title.trim(),
+      category: category.trim(),
       incident_date: incidentDate,
       user_location: userLocation,
       crime_location: crimeLocationData,
-      description
+      description: description.trim()
     }
 
     console.log('Submitting complaint:', payload)
@@ -2117,15 +2168,21 @@ async function handleComplaintSubmit(form) {
     
     let res
     if (evidenceFile) {
+      // Validate file size (5MB limit)
+      if (evidenceFile.size > 5 * 1024 * 1024) {
+        alertDiv.innerHTML = `<div class="alert alert-danger">File size must be less than 5MB.</div>`
+        return
+      }
+
       // Use FormData for file upload
       const formData = new FormData()
       formData.append('evidence', evidenceFile)
-      formData.append('title', title)
-      formData.append('category', category)
-      formData.append('incident_date', incidentDate)
-      formData.append('user_location', JSON.stringify(userLocation))
-      formData.append('crime_location', JSON.stringify(crimeLocationData))
-      formData.append('description', description)
+      formData.append('title', payload.title)
+      formData.append('category', payload.category)
+      formData.append('incident_date', payload.incident_date)
+      formData.append('user_location', JSON.stringify(payload.user_location))
+      formData.append('crime_location', JSON.stringify(payload.crime_location))
+      formData.append('description', payload.description)
       
       res = await fetch(`${backendBase}/file_complaint.php`, {
         method: 'POST',
@@ -2168,21 +2225,25 @@ async function handleComplaintSubmit(form) {
       <strong>Complaint ID:</strong> ${data.complaint_id}<br>
       <small>Your location has been recorded for verification</small>`
     
-    if (data.evidence_file) {
-      successMessage += `<br><strong>Evidence File:</strong> ${data.evidence_file}<br>
-      <small>File uploaded successfully</small>`
+    if (data.evidence_uploaded) {
+      successMessage += `<br><small>Evidence file uploaded successfully</small>`
     }
     
     successMessage += `</div>`
     
     alertDiv.innerHTML = successMessage
-    form.reset()
-    document.getElementById('userLocation').value = ''
-    document.getElementById('userLocation').removeAttribute('data-location')
     
+    // Reset form after successful submission
+    form.reset()
+    userLocationInput.setAttribute('data-location', '')
+    
+    // Reload complaints after a short delay
     setTimeout(() => {
-      location.hash = '#/my-complaints'
-    }, 2000)
+      if (typeof loadComplaints === 'function') {
+        loadComplaints()
+      }
+    }, 1000)
+    
   } catch (error) {
     alertDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`
   }

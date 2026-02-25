@@ -84,7 +84,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           exit;
         }
       } else {
-        $errors[] = 'Registration failed. Please try again.';
+        // Check for specific database errors
+        global $conn;
+        if ($conn->errno === 1062) {
+          $errors[] = 'An account with that email already exists.';
+        } elseif ($conn->errno) {
+          $errors[] = 'Database error occurred. Please try again.';
+          write_debug_log("Database error during registration: " . $conn->error);
+        } else {
+          $errors[] = 'Registration failed. Please try again.';
+        }
       }
     }
 

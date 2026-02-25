@@ -1,4 +1,24 @@
-<?php
+INSERT INTO police_stations (
+  id, police_id, station_name, email, password,
+  station_latitude, station_longitude, jurisdiction_radius, address, phone, created_at
+) VALUES (
+  'station_adii123',
+  'POL_ADII',
+  'Adii Police Station',
+  'adii123@gmail.com',
+  '$2y$10$iv4s9j1gylBWMP7W0Y0HDeY92rtcHgxUlXpPRvJmpaCEUHWdjj0Su',
+  19.00000000,
+  72.00000000,
+  10.00,
+  'Local address',
+  '0000000000',
+  NOW()
+)
+ON DUPLICATE KEY UPDATE
+  password = VALUES(password),
+  station_name = VALUES(station_name),
+  station_latitude = VALUES(station_latitude),
+  station_longitude = VALUES(station_longitude);<?php
 // create_db.php — helper to create the `observx` database and required tables.
 // Usage:
 // 1) Copy this file to your XAMPP htdocs folder (e.g., C:\\xampp\\htdocs) and open
