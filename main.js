@@ -640,11 +640,11 @@ function renderPoliceLogin() {
         <form id="policeLoginForm">
           <div class="mb-3">
             <label class="form-label">Police Email ID</label>
-            <input type="email" class="form-control" id="policeEmail" placeholder="officer@secureindiapolice.gov.in" required>
+            <input type="email" class="form-control" id="email" placeholder="officer@secureindiapolice.gov.in" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="policePassword" required>
+            <input type="password" class="form-control" id="password" required>
           </div>
           <div id="policeLoginAlert"></div>
           <button type="submit" class="btn btn-secondary w-100">Login</button>
@@ -2043,22 +2043,23 @@ async function handleUserLogin(form) {
 }
 
 async function handlePoliceLogin(form) {
-  const email = document.getElementById('policeEmail').value
-  const password = document.getElementById('policePassword').value
+  const email = document.getElementById('email').value
+  const password = document.getElementById('password').value
   const alertDiv = document.getElementById('policeLoginAlert')
 
   try {
-    const payload = new URLSearchParams()
-    payload.append('email', email)
-    payload.append('password', password)
+    const payload = {
+      email: email,
+      password: password
+    }
 
     const res = await fetch(`${backendBase}/police-login.php`, {
       method: 'POST',
       headers: { 
         'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/json'
       },
-      body: payload,
+      body: JSON.stringify(payload),
       mode: 'cors'
     })
 

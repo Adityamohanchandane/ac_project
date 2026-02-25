@@ -4,7 +4,7 @@
 import { MongoClient } from 'mongodb';
 
 // Replace with your MongoDB connection string
-const uri = 'mongodb+srv://username:password@cluster.mongodb.net/observx?retryWrites=true&w=majority';
+const uri = 'mongodb+srv://adityachandane71_db_user:adityamch2007@observex.fcerr8w.mongodb.net/?appName=observeX';
 const client = new MongoClient(uri);
 
 async function setupDatabase() {

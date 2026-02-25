@@ -31,7 +31,28 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { email, password } = JSON.parse(event.body);
+    // Check if event.body exists and is not empty
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ success: false, message: 'Request body is required' })
+      };
+    }
+
+    // Parse JSON with error handling
+    let requestBody;
+    try {
+      requestBody = JSON.parse(event.body);
+    } catch (parseError) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ success: false, message: 'Invalid JSON in request body' })
+      };
+    }
+
+    const { email, password } = requestBody;
 
     if (!email || !password) {
       return {
