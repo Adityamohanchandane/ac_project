@@ -63,7 +63,11 @@ exports.handler = async (event, context) => {
 
     // Try MongoDB connection with fallback
     try {
-      const client = new MongoClient(uri);
+      const client = new MongoClient(uri, {
+        connectTimeoutMS: 3000,
+        socketTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 2000
+      });
       await client.connect();
       const database = client.db('observx');
       const users = database.collection('users');

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "mongodb": "^6.21.0"
   },
   "devDependencies": {
