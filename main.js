@@ -60,10 +60,8 @@ const initLoader = () => {
 }
 
 // Initialize scroll animations
-// Backend base URL - auto-detect for deployment (supports subdirectory installs)
-const currentPath = window.location.pathname || '/'
-const basePath = currentPath.substring(0, currentPath.lastIndexOf('/')) || ''
-const backendBase = window.location.origin + basePath
+// Backend base URL - LAN deployment
+const backendBase = "http://10.50.20.108:3002"
 
 const initScrollAnimations = () => {
   const animateOnScroll = () => {
@@ -1086,7 +1084,7 @@ async function loadUserComplaints() {
     // For now, use the hardcoded user_id since all complaints are saved with "user123"
     // In production, this would come from the logged-in user session
     const userId = "user123";
-    const url = `${backendBase}/get_complaints.php?user_id=${encodeURIComponent(userId)}`;
+    const url = `${backendBase}/api/get-complaints?user_id=${encodeURIComponent(userId)}`;
     
     console.log('Loading complaints from:', url);
     
@@ -1220,7 +1218,7 @@ async function loadDashboardComplaints() {
   try {
     // For now, use the hardcoded user_id since all complaints are saved with "user123"
     const userId = "user123";
-    const url = `${backendBase}/get_complaints.php?user_id=${encodeURIComponent(userId)}`;
+    const url = `${backendBase}/api/get-complaints?user_id=${encodeURIComponent(userId)}`;
     
     console.log('Loading dashboard complaints from:', url);
     
@@ -1909,8 +1907,8 @@ async function handleUserRegister(form) {
       role: 'user'
     }
 
-    // Try register endpoint (we need to create this function)
-    const res = await fetch(`${backendBase}/register.php`, {
+    // Try register endpoint
+    const res = await fetch(`${backendBase}/api/registration`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -1965,7 +1963,7 @@ async function handleUserLogin(form) {
       password: password
     }
 
-    const res = await fetch(`${backendBase}/login.php`, {
+    const res = await fetch(`${backendBase}/api/login`, {
       method: 'POST',
       headers: { 
         'Accept': 'application/json',
@@ -2031,7 +2029,7 @@ async function handlePoliceLogin(form) {
       password: password
     }
 
-    const res = await fetch(`${backendBase}/police-login.php`, {
+    const res = await fetch(`${backendBase}/api/login`, {
       method: 'POST',
       headers: { 
         'Accept': 'application/json',
@@ -2104,23 +2102,36 @@ async function handleComplaintSubmit(form) {
   }
 
   try {
-    // Parse user location from data attribute (optional for now)
+    // Get user location from currentLocation variable or data attribute
     let userLocation = null
-    const userLocationStr = userLocationInput.getAttribute('data-location')
     
-    if (userLocationStr) {
-      try {
-        userLocation = JSON.parse(userLocationStr)
-      } catch (e) {
-        // If location parsing fails, continue without location
-        console.warn('Invalid location format, continuing without location')
+    // First try to get from currentLocation (set by detectUserLocation)
+    if (typeof currentLocation !== 'undefined' && currentLocation) {
+      userLocation = {
+        lat: currentLocation.lat,
+        lng: currentLocation.lng,
+        accuracy: currentLocation.accuracy,
+        timestamp: currentLocation.timestamp,
+        address: `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)}`
       }
     } else {
-      // If no location captured, use dummy location for testing
+      // Fallback to data attribute
+      const userLocationStr = userLocationInput.getAttribute('data-location')
+      if (userLocationStr) {
+        try {
+          userLocation = JSON.parse(userLocationStr)
+        } catch (e) {
+          console.warn('Invalid location format, continuing without location')
+        }
+      }
+    }
+    
+    // If still no location, use dummy location for testing
+    if (!userLocation) {
       userLocation = {
         lat: 19.0760,
         lng: 72.8777,
-        address: "Mumbai, Maharashtra"
+        address: "Mumbai, Maharashtra (Default Location)"
       }
     }
 
@@ -2163,14 +2174,14 @@ async function handleComplaintSubmit(form) {
       formData.append('crime_location', JSON.stringify(payload.crime_location))
       formData.append('description', payload.description)
       
-      res = await fetch(`${backendBase}/file_complaint.php`, {
+      res = await fetch(`${backendBase}/api/file-complaint`, {
         method: 'POST',
         body: formData,
         mode: 'cors'
       })
     } else {
       // Use JSON for requests without files
-      res = await fetch(`${backendBase}/file_complaint.php`, {
+      res = await fetch(`${backendBase}/api/file-complaint`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -2530,6 +2541,9 @@ function detectUserLocation() {
           timestamp: new Date().toISOString()
         };
         
+        // Store in data attribute as well
+        locationInput.setAttribute('data-location', JSON.stringify(currentLocation));
+        
         locationInput.value = `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)} (±${accuracy.toFixed(0)}m)`;
         captureBtn.disabled = false;
         captureBtn.innerHTML = '<i class="bi bi-check-circle"></i> Captured';
@@ -2707,7 +2721,7 @@ async function handleEmergencySubmit(e) {
       formData.append('evidence', photoFile);
     }
     
-    const res = await fetch(`${backendBase}/file_complaint.php`, {
+    const res = await fetch(`${backendBase}/api/file-complaint`, {
       method: 'POST',
       body: formData,
       mode: 'cors'

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Location Tracking Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 300px; }
+        .result { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>🗺️ Location Tracking Test</h1>
+    
+    <div class="test-section">
+        <h3>GPS Location Test</h3>
+        <input type="text" id="userLocation" placeholder="Waiting for GPS..." readonly>
+        <button onclick="detectUserLocation()">📍 Capture Location</button>
+        <div id="locationResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Complaint Submission</h3>
+        <input type="text" id="complaintTitle" placeholder="Complaint Title">
+        <br>
+        <textarea id="description" placeholder="Description (min 20 chars)" rows="3"></textarea>
+        <br>
+        <button onclick="testComplaintSubmission()">📝 Submit Test Complaint</button>
+        <div id="complaintResult" class="result"></div>
+    </div>
+
+    <script>
+        let currentLocation = null;
+
+        // Location detection function (same as main.js)
+        function detectUserLocation() {
+            const locationInput = document.getElementById('userLocation');
+            const resultDiv = document.getElementById('locationResult');
+            
+            locationInput.value = 'Detecting location...';
+            resultDiv.innerHTML = '🔄 Getting GPS coordinates...';
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const accuracy = position.coords.accuracy;
+                        
+                        if (accuracy > 50) {
+                            locationInput.value = `Low accuracy: ±${accuracy.toFixed(0)}m - Try again in open area`;
+                            resultDiv.innerHTML = `❌ Low accuracy: ±${accuracy.toFixed(0)}m. Try again in open area.`;
+                            return;
+                        }
+                        
+                        currentLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            accuracy: accuracy,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        locationInput.value = `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)} (±${accuracy.toFixed(0)}m)`;
+                        resultDiv.innerHTML = `✅ Location captured successfully!<br>
+                            Latitude: ${currentLocation.lat.toFixed(6)}<br>
+                            Longitude: ${currentLocation.lng.toFixed(6)}<br>
+                            Accuracy: ±${accuracy.toFixed(0)}m<br>
+                            Timestamp: ${currentLocation.timestamp}`;
+                    },
+                    (error) => {
+                        locationInput.value = 'GPS detection failed. Please enable location services.';
+                        resultDiv.innerHTML = `❌ GPS Error: ${error.message}`;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                locationInput.value = 'GPS not supported by your browser';
+                resultDiv.innerHTML = '❌ GPS not supported by your browser';
+            }
+        }
+
+        // Test complaint submission
+        async function testComplaintSubmission() {
+            const title = document.getElementById('complaintTitle').value;
+            const description = document.getElementById('description').value;
+            const resultDiv = document.getElementById('complaintResult');
+            
+            if (!title || !description) {
+                resultDiv.innerHTML = '❌ Please fill in title and description';
+                return;
+            }
+            
+            if (description.length < 20) {
+                resultDiv.innerHTML = '❌ Description must be at least 20 characters';
+                return;
+            }
+            
+            // Get user location
+            let userLocation = null;
+            if (currentLocation) {
+                userLocation = {
+                    lat: currentLocation.lat,
+                    lng: currentLocation.lng,
+                    accuracy: currentLocation.accuracy,
+                    timestamp: currentLocation.timestamp,
+                    address: `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)}`
+                };
+            } else {
+                userLocation = {
+                    lat: 19.0760,
+                    lng: 72.8777,
+                    address: "Mumbai, Maharashtra (Default Location)"
+                };
+            }
+            
+            const payload = {
+                title: title.trim(),
+                category: "Infrastructure",
+                incident_date: new Date().toISOString().split('T')[0],
+                user_location: userLocation,
+                crime_location: {
+                    address: "Test Location",
+                    captured_at: new Date().toISOString()
+                },
+                description: description.trim()
+            };
+            
+            resultDiv.innerHTML = '🔄 Submitting complaint...';
+            
+            try {
+                const response = await fetch('http://10.244.57.108:3000/api/file-complaint', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `✅ Complaint filed successfully!<br>
+                        Complaint ID: ${data.complaint_id}<br>
+                        Location: ${userLocation.address}<br>
+                        Coordinates: ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)}`;
+                } else {
+                    resultDiv.innerHTML = `❌ Failed: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
