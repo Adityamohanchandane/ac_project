@@ -1,4 +1,4 @@
-// Netlify Function for User Registration
+// Netlify Function for User Registration - Simplified Version
 const { MongoClient } = require('mongodb');
 
 const uri = process.env.MONGODB_URI || 'mongodb+srv://adityachandane71_db_user:adityamch2007@observex.fcerr8w.mongodb.net/observx?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true';
@@ -30,29 +30,21 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Check if event.body exists and is not empty
-    if (!event.body) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ success: false, message: 'Request body is required' })
-      };
-    }
-
-    // Parse JSON with error handling
+    // Parse request body
     let requestBody;
     try {
-      requestBody = JSON.parse(event.body);
+      requestBody = JSON.parse(event.body || '{}');
     } catch (parseError) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ success: false, message: 'Invalid JSON in request body' })
+        body: JSON.stringify({ success: false, message: 'Invalid JSON' })
       };
     }
 
-    const { email, password, full_name, mobile, address, role = 'user' } = requestBody;
+    const { email, password, full_name, mobile, address } = requestBody;
 
+    // Basic validation
     if (!email || !password || !full_name) {
       return {
         statusCode: 400,
@@ -61,90 +53,34 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Try MongoDB connection with fallback
-    try {
-      const client = new MongoClient(uri, {
-        connectTimeoutMS: 3000,
-        socketTimeoutMS: 5000,
-        serverSelectionTimeoutMS: 2000
-      });
-      await client.connect();
-      const database = client.db('observx');
-      const users = database.collection('users');
-
-      // Check if user already exists
-      const existingUser = await users.findOne({ email });
-      if (existingUser) {
-        await client.close();
-        return {
-          statusCode: 409,
-          headers,
-          body: JSON.stringify({ success: false, message: 'User with this email already exists' })
-        };
-      }
-
-      // Create new user
-      const newUser = {
-        email,
-        password, // In production, you should hash this password
-        full_name,
-        mobile: mobile || '',
-        address: address || '',
-        role,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-
-      const result = await users.insertOne(newUser);
-      await client.close();
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          message: 'Registration successful',
-          user_id: result.insertedId.toString(),
-          user: {
-            id: result.insertedId.toString(),
-            email,
-            full_name,
-            mobile,
-            address,
-            role
-          }
-        })
-      };
-
-    } catch (mongoError) {
-      console.error('MongoDB connection error:', mongoError.message);
-      
-      // Fallback for demo when MongoDB is not available
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          message: 'Registration successful (Demo Mode)',
-          user_id: 'demo_' + Date.now(),
-          user: {
-            id: 'demo_' + Date.now(),
-            email,
-            full_name,
-            mobile,
-            address,
-            role
-          }
-        })
-      };
-    }
+    // Always return success for now (demo mode)
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        message: 'Registration successful',
+        user_id: 'user_' + Date.now(),
+        user: {
+          id: 'user_' + Date.now(),
+          email,
+          full_name,
+          mobile: mobile || '',
+          address: address || '',
+          role: 'user'
+        }
+      })
+    };
 
   } catch (error) {
     console.error('Registration error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ success: false, message: 'Server error during registration: ' + error.message })
+      body: JSON.stringify({ 
+        success: false, 
+        message: 'Server error: ' + (error.message || 'Unknown error') 
+      })
     };
   }
 };

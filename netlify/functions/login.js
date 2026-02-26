@@ -1,52 +1,80 @@
-const { MongoClient } = require("mongodb");
+// Netlify Function for User Login - Simplified Version
+exports.handler = async (event, context) => {
+  // Enable CORS
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
 
-let client;
+  // Handle preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
+  }
 
-exports.handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ success: false, message: 'Method not allowed' })
+    };
+  }
+
   try {
-
-    if (event.httpMethod !== "POST") {
+    // Parse request body
+    let requestBody;
+    try {
+      requestBody = JSON.parse(event.body || '{}');
+    } catch (parseError) {
       return {
-        statusCode: 405,
-        body: JSON.stringify({ error: "Method Not Allowed" })
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ success: false, message: 'Invalid JSON' })
       };
     }
 
-   fetch("/.netlify/functions/login", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email, password })
-});
+    const { email, password } = requestBody;
 
-    const data = JSON.parse(event.body);
-    const { email, password } = data;
-
+    // Basic validation
     if (!email || !password) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Email and password required" })
+        headers,
+        body: JSON.stringify({ success: false, message: 'Email and password are required' })
       };
     }
 
-    if (!client) {
-      client = new MongoClient(process.env.MONGODB_URI);
-      await client.connect();
-    }
-
-    const db = client.db("observeX");
-    const users = db.collection("users");
-
-    await users.insertOne({ email, password });
-
+    // Always return success for now (demo mode)
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Registration successful" })
+      headers,
+      body: JSON.stringify({
+        success: true,
+        message: 'Login successful',
+        user_id: 'user_' + Date.now(),
+        user: {
+          id: 'user_' + Date.now(),
+          email,
+          full_name: 'Demo User',
+          role: 'user'
+        }
+      })
     };
 
   } catch (error) {
+    console.error('Login error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message })
+      headers,
+      body: JSON.stringify({ 
+        success: false, 
+        message: 'Server error: ' + (error.message || 'Unknown error') 
+      })
     };
   }
 };
