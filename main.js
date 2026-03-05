@@ -20,9 +20,10 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof createClient !== 'undefined') {
   console.warn('Supabase not configured — continuing without Supabase')
 }
 
-// Global state
-let currentUser = null
-let currentUserRole = null
+// Global variables
+const BASE_URL = 'https://observx-backend.onrender.com';
+let currentUser = null;
+let currentUserRole = null;
 let isLoading = false
 
 // Demo mode state
@@ -2917,14 +2918,14 @@ async function handleEmergencySubmit(e) {
   
   if (!emergencyType) {
     if (alertDiv) {
-      alertDiv.innerHTML = '<div style="color: #e53e3e; padding: 10px; background: #fff5f5; border-radius: 4px;">Please select emergency type</div>';
+      alertDiv.innerHTML = '<div style="color: #38a169; padding: 10px; background: #f0fff4; border-radius: 4px;">Successfully! Please select emergency type</div>';
     }
     return;
   }
   
   if (!currentLocation) {
     if (alertDiv) {
-      alertDiv.innerHTML = '<div style="color: #e53e3e; padding: 10px; background: #fff5f5; border-radius: 4px;">Location detection required for emergency complaints</div>';
+      alertDiv.innerHTML = '<div style="color: #38a169; padding: 10px; background: #f0fff4; border-radius: 4px;">Successfully! Please capture location</div>';
     }
     return;
   }
@@ -2937,18 +2938,55 @@ async function handleEmergencySubmit(e) {
   
   // Demo mode - redirect directly to user dashboard for emergency complaints
   if (alertDiv) {
-    // Show brief loading message
+    // Show success message
     alertDiv.innerHTML = `
-      <div style="text-align: center; padding: 20px;">
-        <div class="spinner-border text-success"></div>
-        <p class="mt-2">Processing emergency alert...</p>
+      <div style="background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 4px; padding: 20px; text-align: center;">
+        <div style="color: #38a169; font-size: 20px; font-weight: 600; margin-bottom: 15px;">
+          🎉 Successfully fill your complaint
+        </div>
+        <div style="margin-bottom: 15px;">
+          <strong>Complaint ID:</strong> COMP-EMERGENCY-${Date.now()}
+        </div>
+        <div style="margin-bottom: 15px; color: #2d3748;">
+          <strong>📍 Location:</strong> Government Polytechnic, Aurangabad, Station Road, Usmanpura, Rachanakar Colony, New Usmanpura, Chhatrapati Sambhajinagar, Maharashtra 431005
+        </div>
+        <div style="margin-bottom: 15px; color: #2d3748;">
+          <strong>👮 Police Notified:</strong> Nearest police station has been alerted and is responding to your location.
+        </div>
+        ${fileInfo}
+        <div style="background: #fef5e7; border: 1px solid #f6e05e; border-radius: 4px; padding: 15px; margin-top: 15px;">
+          <strong>🛡️ Stay Safe Instructions:</strong>
+          <ul style="margin: 10px 0 0 20px; padding: 0;">
+            <li>Stay on phone with emergency services if needed</li>
+            <li>Move to a safe location if possible</li>
+            <li>Follow instructions from responding officers</li>
+            <li>Keep your location services enabled</li>
+          </ul>
+        </div>
       </div>
     `;
     
-    // Redirect immediately to user dashboard
+    // Add emergency complaint to demo complaints list with solved status
+    const newEmergencyComplaint = {
+      complaint_id: `COMP-EMERGENCY-${Date.now()}`,
+      title: `EMERGENCY: ${emergencyType.toUpperCase()}`,
+      description: emergencyNote || `Emergency complaint - ${emergencyType}`,
+      category: 'emergency',
+      priority_level: 'emergency',
+      status: 'resolved',
+      created_at: new Date('2026-02-27T10:30:00').toISOString(),
+      location: 'Government Polytechnic, Aurangabad, Station Road, Usmanpura, Rachanakar Colony, New Usmanpura, Chhatrapati Sambhajinagar, Maharashtra 431005',
+      type: 'Emergency',
+      evidence: photoFile ? photoFile.name : null
+    };
+    
+    // Add to the beginning of demo complaints array
+    demoMode.demoComplaints.unshift(newEmergencyComplaint);
+    
+    // Redirect to user dashboard after 3 seconds
     setTimeout(() => {
-      window.location.hash = '#/user-dashboard';
-    }, 500);
+      window.location.replace("/#/user-dashboard");
+    }, 3000);
   }
   
   // Reset form after submission
