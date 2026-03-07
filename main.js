@@ -1910,8 +1910,8 @@ function renderEmergencyComplaint() {
             </div>
             <form id="emergencyComplaintForm">
               <div class="mb-3">
-                <label class="form-label">Emergency Title <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="emergencyTitle" placeholder="Brief description of emergency" required>
+                <label class="form-label">Emergency Title <span class="text-muted">(Optional)</span></label>
+                <input type="text" class="form-control" id="emergencyTitle" placeholder="Brief description of emergency (optional)">
               </div>
               <div class="mb-3">
                 <label class="form-label">Category <span class="text-danger">*</span></label>
@@ -1936,8 +1936,8 @@ function renderEmergencyComplaint() {
                 </div>
               </div>
               <div class="mb-3">
-                <label class="form-label">Emergency Location <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="emergencyLocation" placeholder="Where is the emergency happening?" required>
+                <label class="form-label">Emergency Location <span class="text-muted">(Optional - Auto-captured from GPS)</span></label>
+                <input type="text" class="form-control" id="emergencyLocation" placeholder="Where is the emergency happening? (optional)">
               </div>
               <div class="mb-3">
                 <label class="form-label">Description <span class="text-danger">*</span></label>
@@ -2183,9 +2183,9 @@ function attachComplaintFormListeners() {
       e.preventDefault();
       
       const formData = {
-        title: document.getElementById('emergencyTitle').value,
+        title: document.getElementById('emergencyTitle').value || 'Emergency Report',
         category: document.getElementById('emergencyCategory').value,
-        emergencyLocation: document.getElementById('emergencyLocation').value,
+        emergencyLocation: document.getElementById('emergencyLocation').value || 'Location captured by GPS',
         description: document.getElementById('emergencyDescription').value,
         userLocation: document.getElementById('emergencyUserLocation').getAttribute('data-location')
       };
@@ -2203,10 +2203,10 @@ function attachComplaintFormListeners() {
         const formData = new FormData(emergencyComplaintForm);
         
         // Add emergency complaint data
-        formData.append('title', document.getElementById('emergencyTitle').value);
+        formData.append('title', document.getElementById('emergencyTitle').value || 'Emergency Report');
         formData.append('category', document.getElementById('emergencyCategory').value);
         formData.append('incidentDate', new Date().toISOString());
-        formData.append('incidentLocation', document.getElementById('emergencyLocation').value);
+        formData.append('incidentLocation', document.getElementById('emergencyLocation').value || 'Location captured by GPS');
         formData.append('description', document.getElementById('emergencyDescription').value);
         formData.append('userLocation', document.getElementById('emergencyUserLocation').getAttribute('data-location'));
         formData.append('priority', 'emergency');
