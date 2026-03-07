@@ -796,6 +796,7 @@ const pages = {
   'user-register': renderUserRegister,
   'user-dashboard': renderUserDashboard,
   'police-dashboard': renderPoliceDashboard,
+  'complaint-type-selection': renderComplaintTypeSelection,
   'file-complaint': renderFileComplaint,
   'emergency-complaint': renderEmergencyComplaint,
   'view-complaint': renderViewComplaint,
@@ -1005,7 +1006,7 @@ function renderHome() {
           <a href="#/user-register" class="btn btn-light btn-lg me-2">Register Now</a>
           <a href="#/user-login" class="btn btn-outline-light btn-lg">Login</a>
         ` : `
-          <a href="#/file-complaint" class="btn btn-light btn-lg me-2">File Complaint</a>
+          <a href="#/complaint-type-selection" class="btn btn-light btn-lg me-2">File Complaint</a>
           <a href="#/my-complaints" class="btn btn-outline-light btn-lg">View Status</a>
         `}
       </div>
@@ -1207,6 +1208,108 @@ function renderPoliceLogin() {
   `
 }
 
+function renderComplaintTypeSelection() {
+  if (!currentUser || currentUserRole === 'police') {
+    return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access. <a href="#/user-login">Login here</a></div></div>`
+  }
+
+  return `
+    <div class="container mt-4">
+      <div class="row justify-content-center">
+        <div class="col-md-10">
+          <div class="complaint-type-header text-center mb-5">
+            <h2 class="mb-3"><i class="bi bi-clipboard-plus me-2"></i>File a Complaint</h2>
+            <p class="lead text-muted">Please select the type of complaint you want to file</p>
+          </div>
+
+          <div class="row g-4">
+            <!-- Normal Complaint -->
+            <div class="col-md-6">
+              <div class="card complaint-type-card h-100 border-primary shadow-sm">
+                <div class="card-body text-center">
+                  <div class="complaint-icon mb-3">
+                    <i class="bi bi-file-text display-1 text-primary"></i>
+                  </div>
+                  <h3 class="card-title mb-3">Normal Complaint</h3>
+                  <p class="card-text text-muted">
+                    File a regular complaint for non-urgent issues. These will be processed within standard timeframes.
+                  </p>
+                  <ul class="text-start mb-4">
+                    <li><i class="bi bi-check-circle text-success me-2"></i>Theft reports</li>
+                    <li><i class="bi bi-check-circle text-success me-2"></i>Property disputes</li>
+                    <li><i class="bi bi-check-circle text-success me-2"></i>Harassment complaints</li>
+                    <li><i class="bi bi-check-circle text-success me-2"></i>Other non-urgent issues</li>
+                  </ul>
+                  <a href="#/file-complaint" class="btn btn-primary btn-lg w-100">
+                    <i class="bi bi-plus-circle me-2"></i>File Normal Complaint
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Emergency Complaint -->
+            <div class="col-md-6">
+              <div class="card complaint-type-card h-100 border-danger shadow-sm">
+                <div class="card-body text-center">
+                  <div class="complaint-icon mb-3">
+                    <i class="bi bi-exclamation-triangle display-1 text-danger"></i>
+                  </div>
+                  <h3 class="card-title mb-3">Emergency Complaint</h3>
+                  <p class="card-text text-muted">
+                    File an emergency complaint for urgent situations requiring immediate attention.
+                  </p>
+                  <ul class="text-start mb-4">
+                    <li><i class="bi bi-exclamation-triangle text-danger me-2"></i>Life-threatening situations</li>
+                    <li><i class="bi bi-exclamation-triangle text-danger me-2"></i>Violent crimes in progress</li>
+                    <li><i class="bi bi-exclamation-triangle text-danger me-2"></i>Medical emergencies</li>
+                    <li><i class="bi bi-exclamation-triangle text-danger me-2"></i>Fire emergencies</li>
+                  </ul>
+                  <a href="#/emergency-complaint" class="btn btn-danger btn-lg w-100">
+                    <i class="bi bi-exclamation-triangle me-2"></i>File Emergency Complaint
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center mt-4">
+            <a href="#/user-dashboard" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .complaint-type-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        cursor: pointer;
+      }
+      
+      .complaint-type-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+      }
+      
+      .complaint-icon {
+        padding: 20px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.05);
+        display: inline-block;
+      }
+      
+      .display-1 {
+        font-size: 3rem;
+      }
+      
+      .card-text {
+        min-height: 80px;
+      }
+    </style>
+  `
+}
+
 function renderFileComplaint() {
   if (!currentUser || currentUserRole === 'police') {
     return `<div class="container mt-5"><div class="alert alert-danger">Please login as a citizen to file a complaint. <a href="#/user-login">Login here</a></div></div>`
@@ -1352,7 +1455,7 @@ function renderUserDashboard() {
           </div>
 
           <div class="text-center mt-4">
-            <a href="#/file-complaint" class="btn btn-primary">
+            <a href="#/complaint-type-selection" class="btn btn-primary">
               <i class="bi bi-plus-circle"></i> File New Complaint
             </a>
             <a href="#/my-complaints" class="btn btn-outline-primary">
@@ -1521,7 +1624,7 @@ function renderMyComplaints() {
           <div class="complaints-header p-4 mb-4">
             <div class="d-flex justify-content-between align-items-center">
               <h2 class="mb-0"><i class="bi bi-list-ul me-2"></i>My Complaints</h2>
-              <button class="btn btn-light" onclick="window.location.hash='#/file-complaint'">
+              <button class="btn btn-light" onclick="window.location.hash='#/complaint-type-selection'">
                 <i class="bi bi-plus-circle me-2"></i>File New Complaint
               </button>
             </div>
@@ -1677,7 +1780,7 @@ function renderComplaintsTable(complaints) {
         <i class="bi bi-inbox display-1 text-muted"></i>
         <h5 class="mt-3 text-muted">No Complaints Found</h5>
         <p class="text-muted">You haven't filed any complaints yet.</p>
-        <button class="btn btn-primary" onclick="window.location.hash='#/file-complaint'">
+        <button class="btn btn-primary" onclick="window.location.hash='#/complaint-type-selection'">
           <i class="bi bi-plus-circle me-2"></i>File Your First Complaint
         </button>
       </div>
