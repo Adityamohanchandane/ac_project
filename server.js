@@ -2,7 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
@@ -387,6 +387,64 @@ app.get('/api/complaints/all', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('Error fetching all complaints:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch complaints' });
+  }
+});
+
+// Update complaint status (for police)
+app.put('/api/complaints/:id', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, policeNotes } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Status is required' 
+      });
+    }
+    
+    const database = await connectToMongoDB();
+    if (!database) {
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    
+    // Update complaint
+    const updateData = {
+      status: status,
+      updatedAt: new Date().toISOString(),
+      updatedBy: req.user.email,
+      policeNotes: policeNotes || ''
+    };
+    
+    const result = await complaintsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Complaint not found' 
+      });
+    }
+    
+    console.log(`✅ Complaint ${id} status updated to ${status} by ${req.user.email}`);
+    
+    res.json({
+      success: true,
+      message: 'Complaint status updated successfully',
+      data: {
+        complaintId: id,
+        newStatus: status,
+        updatedAt: updateData.updatedAt
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error updating complaint status:', error);
+    res.status(500).json({ success: false, message: 'Failed to update complaint status' });
   }
 });
 

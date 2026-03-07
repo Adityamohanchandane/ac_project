@@ -244,7 +244,8 @@ const login = async (email, password, role = 'user') => {
     if (data.success) {
       const userData = role === 'police' ? data.data.police : data.data.user;
       currentUser = userData;
-      currentUserRole = userData.role;
+      // For police login, force role to 'police' regardless of database role
+      currentUserRole = role === 'police' ? 'police' : userData.role;
       localStorage.setItem('authToken', data.data.token);
       updateAuthMenu();
       
@@ -1516,10 +1517,17 @@ const loadDashboardData = async () => {
 };
 
 function renderPoliceDashboard() {
+  console.log('🚔 Police Dashboard Render Called');
+  console.log('- Current User:', currentUser);
+  console.log('- Current Role:', currentUserRole);
+  console.log('- Is Police:', currentUserRole === 'police');
+  
   if (!currentUser || currentUserRole !== 'police') {
+    console.log('❌ Police Dashboard: Unauthorized');
     return `<div class="container mt-5"><div class="alert alert-danger">Unauthorized access. <a href="#/police-login">Login here</a></div></div>`
   }
 
+  console.log('✅ Police Dashboard: Authorized, rendering...');
   return `
     <div class="container">
       <div class="row">
@@ -1563,8 +1571,11 @@ function renderPoliceDashboard() {
           </div>
 
           <div class="card">
-            <div class="card-header">
-              <h5><i class="bi bi-list-check"></i> All Complaints</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0"><i class="bi bi-list-check"></i> All Complaints</h5>
+              <button class="btn btn-sm btn-success" onclick="loadPoliceDashboardData()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+              </button>
             </div>
             <div class="card-body">
               <div class="table-responsive">
@@ -1608,14 +1619,18 @@ function renderPoliceDashboard() {
 
 // Load police dashboard data from MongoDB
 async function loadPoliceDashboardData() {
+  console.log('📊 Loading Police Dashboard Data...');
   try {
     const token = localStorage.getItem('authToken');
+    console.log('- Token exists:', !!token);
+    
     if (!token) {
-      console.error('No auth token found for police dashboard');
+      console.error('❌ No auth token found for police dashboard');
       return;
     }
 
     // Load all complaints (police can see all complaints)
+    console.log('- Fetching from:', `${BASE_URL}/api/complaints/all`);
     const response = await fetch(`${BASE_URL}/api/complaints/all`, {
       method: 'GET',
       headers: {
@@ -1624,17 +1639,24 @@ async function loadPoliceDashboardData() {
       }
     });
 
+    console.log('- Response status:', response.status);
+    console.log('- Response ok:', response.ok);
+
     if (response.ok) {
       const result = await response.json();
+      console.log('- API Response:', result);
       
       if (result.success && result.data && result.data.complaints) {
         const complaints = result.data.complaints;
+        console.log(`✅ Found ${complaints.length} complaints`);
         
         // Update statistics
         const totalCount = complaints.length;
         const emergencyCount = complaints.filter(c => c.priority === 'emergency').length;
         const pendingCount = complaints.filter(c => c.status === 'pending').length;
         const investigationCount = complaints.filter(c => c.status === 'under-investigation').length;
+        
+        console.log('- Statistics:', { totalCount, emergencyCount, pendingCount, investigationCount });
         
         document.getElementById('totalComplaintsCount').textContent = totalCount;
         document.getElementById('emergencyComplaintsCount').textContent = emergencyCount;
@@ -1646,15 +1668,15 @@ async function loadPoliceDashboardData() {
         
         console.log(`✅ Police dashboard loaded: ${totalCount} complaints`);
       } else {
-        console.error('Failed to load police dashboard data:', result.message);
+        console.error('❌ Failed to load police dashboard data:', result.message);
         showEmptyState();
       }
     } else {
-      console.error('Failed to fetch police dashboard data');
+      console.error('❌ Failed to fetch police dashboard data');
       showEmptyState();
     }
   } catch (error) {
-    console.error('Error loading police dashboard:', error);
+    console.error('❌ Error loading police dashboard:', error);
     showEmptyState();
   }
 }
@@ -1690,12 +1712,115 @@ function renderPoliceComplaintsTable(complaints) {
         <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint._id}')">
           <i class="bi bi-eye"></i> View
         </button>
-        <button class="btn btn-sm btn-outline-success" onclick="updateComplaint('${complaint._id}')">
+        <button class="btn btn-sm btn-outline-success" onclick="updatePoliceComplaint('${complaint._id}', '${complaint.status}')">
           <i class="bi bi-pencil"></i> Update
         </button>
       </td>
     </tr>
   `).join('');
+}
+
+// Update complaint status (Police function)
+function updatePoliceComplaint(complaintId, currentStatus) {
+  try {
+    // Create status update modal
+    const modal = document.createElement('div');
+    modal.innerHTML = `
+      <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Update Complaint Status</h5>
+              <button type="button" class="btn-close" onclick="closeStatusModal()"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">Current Status: <span class="badge bg-${getStatusColor(currentStatus)}">${currentStatus.replace(/_/g, ' ')}</span></label>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">New Status</label>
+                <select class="form-select" id="newStatus">
+                  <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                  <option value="under-investigation" ${currentStatus === 'under-investigation' ? 'selected' : ''}>Under Investigation</option>
+                  <option value="resolved" ${currentStatus === 'resolved' ? 'selected' : ''}>Resolved</option>
+                  <option value="rejected" ${currentStatus === 'rejected' ? 'selected' : ''}>Rejected</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Notes (Optional)</label>
+                <textarea class="form-control" id="statusNotes" rows="3" placeholder="Add any notes about this status update..."></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="closeStatusModal()">Cancel</button>
+              <button type="button" class="btn btn-primary" onclick="saveStatusUpdate('${complaintId}')">Update Status</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    window.currentComplaintId = complaintId;
+    
+  } catch (error) {
+    console.error('Error opening status update modal:', error);
+    showNotification('error', 'Failed to open status update');
+  }
+}
+
+// Close status modal
+function closeStatusModal() {
+  const modal = document.querySelector('.modal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// Save status update
+async function saveStatusUpdate(complaintId) {
+  try {
+    const newStatus = document.getElementById('newStatus').value;
+    const notes = document.getElementById('statusNotes').value;
+    
+    if (!newStatus) {
+      showNotification('error', 'Please select a status');
+      return;
+    }
+    
+    setLoading(true);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${BASE_URL}/api/complaints/${complaintId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status: newStatus,
+        policeNotes: notes,
+        updatedAt: new Date().toISOString()
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showNotification('success', 'Complaint status updated successfully!');
+      closeStatusModal();
+      // Reload dashboard data
+      setTimeout(() => loadPoliceDashboardData(), 500);
+    } else {
+      showNotification('error', result.message || 'Failed to update status');
+    }
+    
+  } catch (error) {
+    console.error('Error updating complaint status:', error);
+    showNotification('error', 'Error updating complaint status');
+  } finally {
+    setLoading(false);
+  }
 }
 
 // Show empty state for police dashboard
@@ -2518,7 +2643,11 @@ async function loadComplaintDetail(complaintId) {
       return;
     }
 
-    const response = await fetch(`${BASE_URL}/api/complaints/user`, {
+    // Use different endpoint for police vs user
+    const endpoint = currentUserRole === 'police' ? '/api/complaints/all' : '/api/complaints/user';
+    console.log(`🔍 Loading complaint details from: ${endpoint}`);
+    
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -2527,13 +2656,16 @@ async function loadComplaintDetail(complaintId) {
     });
 
     const result = await response.json();
+    console.log('📋 Complaint details response:', result);
     
     if (result.success && result.data && result.data.complaints) {
       const complaint = result.data.complaints.find(c => c._id === complaintId || c.complaintId === complaintId);
       
       if (complaint) {
+        console.log('✅ Complaint found:', complaint);
         displayComplaintDetail(complaint);
       } else {
+        console.log('❌ Complaint not found');
         document.getElementById('complaintDetailContent').innerHTML = `
           <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -2542,6 +2674,7 @@ async function loadComplaintDetail(complaintId) {
         `;
       }
     } else {
+      console.log('❌ Failed to load complaint details:', result.message);
       document.getElementById('complaintDetailContent').innerHTML = `
         <div class="alert alert-danger">
           <i class="bi bi-exclamation-triangle me-2"></i>
@@ -2550,7 +2683,7 @@ async function loadComplaintDetail(complaintId) {
       `;
     }
   } catch (error) {
-    console.error('Error loading complaint detail:', error);
+    console.error('❌ Error loading complaint detail:', error);
     document.getElementById('complaintDetailContent').innerHTML = `
       <div class="alert alert-danger">
         <i class="bi bi-exclamation-triangle me-2"></i>
