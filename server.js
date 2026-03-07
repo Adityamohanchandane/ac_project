@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 // Proper MongoDB URI with encoded password
 const getDefaultMongoURI = () => {
   const username = 'adityachandane71_db_user';
-  const password = 'adityamch$2007'; // Original password with $ character
+  const password = 'adityamch2007'; // Original password with $ character
   const encodedPassword = encodeURIComponent(password);
   return `mongodb+srv://${username}:${encodedPassword}@observex.fcerr8w.mongodb.net/observx?retryWrites=true&w=majority`;
 };
