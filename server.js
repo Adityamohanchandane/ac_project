@@ -77,8 +77,17 @@ const connectToMongoDB = async () => {
     
     console.log('🔗 Attempting MongoDB connection...');
     
-    // Simple connection without SSL validation for now
-    client = new MongoClient(MONGODB_URI);
+    // MongoDB connection with proper SSL options
+    const options = {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      tls: true,
+      tlsAllowInvalidCertificates: true,
+      tlsAllowInvalidHostnames: true,
+    };
+    
+    client = new MongoClient(MONGODB_URI, options);
     await client.connect();
     db = client.db('observx');
     console.log('✅ MongoDB connected successfully');
@@ -552,6 +561,48 @@ app.get('/api/complaints/all', async (req, res) => {
   }
 });
 
+// Get user's complaints
+app.get('/api/complaints/user', authenticateUser, async (req, res) => {
+  try {
+    const database = await connectToMongoDB();
+    if (!database) {
+      // Fallback to file
+      const data = loadFromFile();
+      const userComplaints = data.complaints.filter(complaint => 
+        complaint.userId === req.user?.id || complaint.userId === 'user_demo_1'
+      );
+      
+      console.log(`✅ Found ${userComplaints.length} complaints for user from file`);
+      
+      return res.json({
+        success: true,
+        data: {
+          complaints: userComplaints,
+          total: userComplaints.length
+        }
+      });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    const userComplaints = await complaintsCollection.find({
+      userId: req.user?.id || 'user_demo_1'
+    }).sort({ createdAt: -1 }).toArray();
+    
+    console.log(`✅ Found ${userComplaints.length} complaints for user from MongoDB`);
+    
+    res.json({
+      success: true,
+      data: {
+        complaints: userComplaints,
+        total: userComplaints.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user complaints:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch complaints' });
+  }
+});
+
 app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async (req, res) => {
   try {
     const { title, description, category, incidentDate, incidentLocation, userLocation, priority = 'medium' } = req.body;
@@ -692,8 +743,38 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Server running on http://0.0.0.0:${PORT}`);
   console.log(`📱 Mobile access: http://<your-local-ip>:${PORT}`);
   
+  // Test MongoDB connection on startup
+  testMongoConnection();
+  
   // Render deployment info
   if (process.env.RENDER) {
     console.log(`🚀 Deployed on Render: https://${process.env.RENDER_EXTERNAL_HOSTNAME}`);
   }
 });
+
+// Test MongoDB connection and show clear status
+const testMongoConnection = async () => {
+  console.log('🔄 Testing database connection...');
+  
+  const db = await connectToMongoDB();
+  
+  if (db) {
+    console.log('✅ SUCCESS: MongoDB Connected!');
+    console.log('📊 Database: observx');
+    console.log('🗃️ All new complaints will be saved to MongoDB');
+    console.log('📍 Data Location: MongoDB Atlas Cloud');
+  } else {
+    console.log('❌ FALLBACK: Using File Storage');
+    console.log('📁 Data Location: data.json (local file)');
+    console.log('💾 All complaints will be saved to file storage');
+    console.log('🔧 To enable MongoDB:');
+    console.log('   1. Install local MongoDB OR');
+    console.log('   2. Fix Atlas SSL configuration OR');
+    console.log('   3. Update network access in Atlas');
+  }
+  
+  // Show current data status
+  const data = loadFromFile();
+  console.log(`📋 Current complaints in storage: ${data.complaints.length}`);
+  console.log('👥 Current users in storage:', data.users.length);
+};

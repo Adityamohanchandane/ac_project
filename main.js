@@ -327,144 +327,371 @@ function updateAuthMenu() {
   initTooltips()
 }
 
-// Capture user's current location using Geolocation API
-async function getUserLocation() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported by this browser'))
-      return
-    }
-    
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords
-        resolve({
-          latitude,
-          longitude,
-          accuracy,
-          timestamp: new Date().toISOString()
-        })
-      },
-      (error) => {
-        reject(error)
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    )
-  })
-}
+// Secure Geolocation API with proper error handling and user interaction requirement
+const secureGeolocationAPI = {
+  // Check if geolocation is supported
+  isSupported() {
+    return 'geolocation' in navigator;
+  },
 
-// Enhanced Geolocation Evidence Capture
-const captureGeolocationEvidence = async () => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      console.log('📍 Starting geolocation evidence capture...');
+  // Get current position with user interaction
+  async getCurrentPosition() {
+    return new Promise((resolve, reject) => {
+      if (!this.isSupported()) {
+        const error = new Error('Geolocation is not supported by this browser');
+        console.error('❌ Geolocation not supported:', error.message);
+        reject(error);
+        return;
+      }
+
+      console.log('📍 Requesting geolocation permission...');
       
-      // Try browser GPS first
-      if (navigator.geolocation) {
-        console.log('📱 Browser GPS available, requesting permission...');
-        
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const locationData = {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const locationData = {
+            location: {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
               accuracy: position.coords.accuracy,
               altitude: position.coords.altitude,
               altitudeAccuracy: position.coords.altitudeAccuracy,
               heading: position.coords.heading,
-              speed: position.coords.speed,
-              timestamp: new Date(position.timestamp).toISOString(),
-              method: 'gps'
-            };
-            
-            console.log('✅ GPS location captured:', locationData);
-            resolve(locationData);
-          },
-          async (error) => {
-            console.log('❌ GPS failed, trying IP-based location:', error.message);
-            const ipLocation = await getIPLocation();
-            resolve(ipLocation);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      } else {
-        console.log('❌ GPS not available, using IP-based location');
-        const ipLocation = await getIPLocation();
-        resolve(ipLocation);
-      }
-    } catch (error) {
-      console.error('❌ Geolocation capture failed:', error);
-      reject(error);
-    }
-  });
-};
-
-// IP-based location fallback
-const getIPLocation = async () => {
-  try {
-    console.log('🌐 Getting IP-based location...');
-    
-    // Try multiple IP location services
-    const services = [
-      'https://ipapi.co/json/',
-      'https://ipinfo.io/json',
-      'https://api.ipify.org?format=json'
-    ];
-    
-    for (const service of services) {
-      try {
-        const response = await fetch(service);
-        const data = await response.json();
-        
-        if (data.latitude && data.longitude) {
-          const locationData = {
-            latitude: data.latitude,
-            longitude: data.longitude,
-            accuracy: 1000, // IP location is less accurate
-            city: data.city,
-            region: data.region,
-            country: data.country_name || data.country,
-            ip: data.ip,
-            timestamp: new Date().toISOString(),
-            method: 'ip'
+              speed: position.coords.speed
+            },
+            timestamp: new Date(position.timestamp).toISOString(),
+            device: navigator.userAgent,
+            method: 'gps'
           };
           
-          console.log('✅ IP location captured:', locationData);
-          return locationData;
+          console.log('✅ GPS location captured successfully:', locationData);
+          resolve(locationData);
+        },
+        (error) => {
+          console.error('❌ Geolocation error:', error);
+          let errorMessage = '';
+          
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location permission denied by user';
+              console.log('🚫 User denied location permission');
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information unavailable';
+              console.log('❌ Location unavailable');
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out';
+              console.log('⏰ Location request timeout');
+              break;
+            default:
+              errorMessage = 'Unknown geolocation error';
+              console.log('❓ Unknown geolocation error');
+              break;
+          }
+          
+          reject(new Error(errorMessage));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
-      } catch (error) {
-        console.log(`❌ Service ${service} failed:`, error.message);
-        continue;
+      );
+    });
+  },
+
+  // Fallback to IP-based location
+  async getIPLocation() {
+    try {
+      console.log('🌐 Getting IP-based location fallback...');
+      
+      const services = [
+        'https://ipapi.co/json/',
+        'https://ipinfo.io/json'
+      ];
+      
+      for (const service of services) {
+        try {
+          const response = await fetch(service);
+          const data = await response.json();
+          
+          if (data.latitude && data.longitude) {
+            const locationData = {
+              location: {
+                latitude: data.latitude,
+                longitude: data.longitude,
+                accuracy: 1000 // IP location is less accurate
+              },
+              timestamp: new Date().toISOString(),
+              device: navigator.userAgent,
+              method: 'ip',
+              city: data.city,
+              region: data.region,
+              country: data.country_name || data.country,
+              ip: data.ip
+            };
+            
+            console.log('✅ IP location captured:', locationData);
+            return locationData;
+          }
+        } catch (error) {
+          console.log(`❌ IP service ${service} failed:`, error.message);
+          continue;
+        }
       }
+      
+      // Final fallback
+      const fallbackLocation = {
+        location: {
+          latitude: 0,
+          longitude: 0,
+          accuracy: 9999
+        },
+        timestamp: new Date().toISOString(),
+        device: navigator.userAgent,
+        method: 'fallback',
+        error: 'All location services failed'
+      };
+      
+      console.log('⚠️ Using fallback location:', fallbackLocation);
+      return fallbackLocation;
+      
+    } catch (error) {
+      console.error('❌ IP location fallback failed:', error);
+      throw error;
+    }
+  }
+};
+
+// Secure Camera API with proper error handling and user interaction requirement
+const secureCameraAPI = {
+  // Check if camera is supported
+  isSupported() {
+    return 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices;
+  },
+
+  // Check if specific camera type is supported
+  isCameraTypeSupported(type = 'user') {
+    if (!this.isSupported()) {
+      return false;
     }
     
-    // If all services fail, return basic info
-    const fallbackLocation = {
-      latitude: 0,
-      longitude: 0,
-      accuracy: 9999,
-      error: 'Location services unavailable',
-      timestamp: new Date().toISOString(),
-      method: 'fallback'
-    };
+    const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
+    return supportedConstraints.facingMode && supportedConstraints.video;
+  },
+
+  // Access camera with user interaction
+  async accessCamera(constraints = { video: { facingMode: 'user' }, audio: false }) {
+    return new Promise((resolve, reject) => {
+      if (!this.isSupported()) {
+        const error = new Error('Camera API is not supported by this browser');
+        console.error('❌ Camera not supported:', error.message);
+        reject(error);
+        return;
+      }
+
+      console.log('📸 Requesting camera permission...');
+      
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+          const cameraData = {
+            stream: stream,
+            timestamp: new Date().toISOString(),
+            device: navigator.userAgent,
+            constraints: constraints,
+            method: 'camera'
+          };
+          
+          console.log('✅ Camera access granted:', cameraData);
+          resolve(cameraData);
+        })
+        .catch((error) => {
+          console.error('❌ Camera error:', error);
+          let errorMessage = '';
+          
+          switch(error.name) {
+            case 'NotAllowedError':
+              errorMessage = 'Camera permission denied by user';
+              console.log('🚫 User denied camera permission');
+              break;
+            case 'NotFoundError':
+              errorMessage = 'No camera device found';
+              console.log('❌ No camera found');
+              break;
+            case 'NotReadableError':
+              errorMessage = 'Camera is already in use by another application';
+              console.log('🔒 Camera already in use');
+              break;
+            case 'OverconstrainedError':
+              errorMessage = 'Camera constraints cannot be satisfied';
+              console.log('⚠️ Camera constraints not supported');
+              break;
+            case 'SecurityError':
+              errorMessage = 'Camera access blocked due to security restrictions';
+              console.log('🔒 Camera access blocked (HTTPS required)');
+              break;
+            default:
+              errorMessage = 'Unknown camera error';
+              console.log('❓ Unknown camera error');
+              break;
+          }
+          
+          reject(new Error(errorMessage));
+        });
+    });
+  },
+
+  // Stop camera stream
+  stopCamera(stream) {
+    if (stream && stream.getTracks) {
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log('🛑 Camera track stopped');
+      });
+    }
+  }
+};
+
+// Enhanced location capture function for complaint forms
+async function captureUserLocation(buttonElement) {
+  if (!buttonElement) {
+    console.error('❌ Button element not provided');
+    return null;
+  }
+
+  // Ensure this is triggered by user interaction
+  const originalText = buttonElement.innerHTML;
+  buttonElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...';
+  buttonElement.disabled = true;
+
+  try {
+    console.log('📍 Starting secure location capture...');
     
-    console.log('⚠️ Using fallback location:', fallbackLocation);
-    return fallbackLocation;
+    // Try GPS first
+    const location = await secureGeolocationAPI.getCurrentPosition();
+    
+    // Format location for display
+    const locationStr = `${location.location.latitude.toFixed(6)}, ${location.location.longitude.toFixed(6)} (±${location.location.accuracy.toFixed(0)}m)`;
+    
+    console.log('✅ Location captured successfully:', location);
+    
+    return {
+      location,
+      locationStr,
+      success: true
+    };
     
   } catch (error) {
-    console.error('❌ IP location failed:', error);
+    console.error('❌ GPS location failed, trying IP fallback:', error.message);
+    
+    try {
+      // Fallback to IP location
+      const location = await secureGeolocationAPI.getIPLocation();
+      const locationStr = `${location.location.latitude.toFixed(6)}, ${location.location.longitude.toFixed(6)} (±${location.location.accuracy.toFixed(0)}m)`;
+      
+      console.log('✅ Fallback location captured:', location);
+      
+      return {
+        location,
+        locationStr,
+        success: true,
+        fallback: true
+      };
+      
+    } catch (fallbackError) {
+      console.error('❌ All location methods failed:', fallbackError.message);
+      
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  } finally {
+    // Restore button
+    buttonElement.innerHTML = originalText;
+    buttonElement.disabled = false;
+  }
+}
+
+// Enhanced camera capture function
+async function captureCamera(buttonElement, videoElement, constraints = { video: { facingMode: 'user' }, audio: false }) {
+  if (!buttonElement) {
+    console.error('❌ Button element not provided');
+    return null;
+  }
+
+  // Ensure this is triggered by user interaction
+  const originalText = buttonElement.innerHTML;
+  buttonElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Accessing Camera...';
+  buttonElement.disabled = true;
+
+  try {
+    console.log('📸 Starting secure camera capture...');
+    
+    const cameraData = await secureCameraAPI.accessCamera(constraints);
+    
+    if (videoElement) {
+      videoElement.srcObject = cameraData.stream;
+      videoElement.play();
+      console.log('📹 Camera feed started');
+    }
+    
+    console.log('✅ Camera access successful');
+    
     return {
-      latitude: 0,
-      longitude: 0,
-      accuracy: 9999,
-      error: error.message,
-      timestamp: new Date().toISOString(),
-      method: 'error'
+      stream: cameraData.stream,
+      success: true
     };
+    
+  } catch (error) {
+    console.error('❌ Camera access failed:', error.message);
+    
+    return {
+      success: false,
+      error: error.message
+    };
+  } finally {
+    // Restore button
+    buttonElement.innerHTML = originalText;
+    buttonElement.disabled = false;
+  }
+}
+
+// Legacy function for backward compatibility
+async function getUserLocation() {
+  try {
+    const result = await captureUserLocation({ innerText: 'Legacy' });
+    if (result.success) {
+      return result.location.location;
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Enhanced Geolocation Evidence Capture (updated for security)
+const captureGeolocationEvidence = async () => {
+  try {
+    console.log('📍 Starting geolocation evidence capture...');
+    
+    // Use the secure API
+    const location = await secureGeolocationAPI.getCurrentPosition();
+    console.log('✅ Geolocation evidence captured:', location);
+    return location;
+    
+  } catch (error) {
+    console.error('❌ GPS evidence capture failed, trying IP fallback:', error.message);
+    
+    try {
+      const ipLocation = await secureGeolocationAPI.getIPLocation();
+      console.log('✅ IP-based evidence captured:', ipLocation);
+      return ipLocation;
+    } catch (fallbackError) {
+      console.error('❌ All evidence capture methods failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 
@@ -721,6 +948,8 @@ async function loadPage(route) {
         attachComplaintFormListeners()
       } else if (route === 'user-dashboard') {
         setTimeout(loadDashboardData, 100); // Load data after DOM is ready
+      } else if (route === 'my-complaints') {
+        setTimeout(loadMyComplaintsDataAndRender, 100); // Load complaints after DOM is ready
       }
     } else {
       content.innerHTML = `
@@ -1274,44 +1503,67 @@ function renderMyComplaints() {
   }
 
   return `
-    <div class="container">
+    <div class="container mt-4">
       <div class="row">
         <div class="col-12">
-          <h2><i class="bi bi-list"></i> My Complaints</h2>
+          <div class="complaints-header p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+              <h2 class="mb-0"><i class="bi bi-list-ul me-2"></i>My Complaints</h2>
+              <button class="btn btn-light" onclick="window.location.hash='#/file-complaint'">
+                <i class="bi bi-plus-circle me-2"></i>File New Complaint
+              </button>
+            </div>
+          </div>
           
-          <div class="card">
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table table-striped">
-                  <thead>
-                    <tr>
-                      <th>Complaint ID</th>
-                      <th>Title</th>
-                      <th>Category</th>
-                      <th>Status</th>
-                      <th>Priority</th>
-                      <th>Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${demoMode.demoComplaints.map(complaint => `
-                      <tr>
-                        <td>${complaint.complaint_id}</td>
-                        <td>${complaint.title}</td>
-                        <td>${complaint.category}</td>
-                        <td><span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span></td>
-                        <td><span class="badge bg-${getPriorityColor(complaint.priority_level)}">${complaint.priority_level}</span></td>
-                        <td>${new Date(complaint.created_at).toLocaleDateString()}</td>
-                        <td>
-                          <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint.id}')">
-                            <i class="bi bi-eye"></i> View
-                          </button>
-                        </td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
+          <!-- Statistics Cards -->
+          <div class="row mb-4" id="complaintsStats">
+            <div class="col-md-3">
+              <div class="card stats-card border-primary">
+                <div class="card-body text-center">
+                  <h5 class="card-title text-primary" id="totalCount">0</h5>
+                  <p class="card-text">Total Complaints</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card border-success">
+                <div class="card-body text-center">
+                  <h5 class="card-title text-success" id="resolvedCount">0</h5>
+                  <p class="card-text">Resolved</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card border-warning">
+                <div class="card-body text-center">
+                  <h5 class="card-title text-warning" id="pendingCount">0</h5>
+                  <p class="card-text">Pending</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card border-info">
+                <div class="card-body text-center">
+                  <h5 class="card-title text-info" id="investigationCount">0</h5>
+                  <p class="card-text">Under Investigation</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Complaints Table -->
+          <div class="card complaints-table shadow-sm">
+            <div class="card-header bg-white border-bottom">
+              <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Complaint History</h5>
+            </div>
+            <div class="card-body p-0">
+              <div id="complaintsTableContainer">
+                <div class="text-center py-5">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <p class="mt-3 text-muted">Loading your complaints...</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1319,6 +1571,153 @@ function renderMyComplaints() {
       </div>
     </div>
   `
+}
+
+// Function to render complaints table with real data
+function renderComplaintsTable(complaints) {
+  const totalCount = complaints.length;
+  const resolvedCount = complaints.filter(c => c.status === 'resolved').length;
+  const pendingCount = complaints.filter(c => c.status === 'pending').length;
+  const investigationCount = complaints.filter(c => c.status === 'under-investigation').length;
+
+  // Update statistics
+  document.getElementById('totalCount').textContent = totalCount;
+  document.getElementById('resolvedCount').textContent = resolvedCount;
+  document.getElementById('pendingCount').textContent = pendingCount;
+  document.getElementById('investigationCount').textContent = investigationCount;
+
+  // Render table
+  const tableHTML = `
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th><i class="bi bi-hash me-1"></i>Complaint ID</th>
+            <th><i class="bi bi-card-text me-1"></i>Title</th>
+            <th><i class="bi bi-tag me-1"></i>Category</th>
+            <th><i class="bi bi-flag me-1"></i>Priority</th>
+            <th><i class="bi bi-info-circle me-1"></i>Status</th>
+            <th><i class="bi bi-calendar me-1"></i>Date Filed</th>
+            <th><i class="bi bi-gear me-1"></i>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${complaints.map(complaint => `
+            <tr>
+              <td>
+                <span class="badge bg-secondary">${complaint.complaintId || complaint._id}</span>
+              </td>
+              <td>
+                <div class="complaint-title">${complaint.title}</div>
+                <small class="complaint-description">${complaint.description.substring(0, 50)}...</small>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark">
+                  <i class="bi bi-folder me-1"></i>${complaint.category}
+                </span>
+              </td>
+              <td>
+                <span class="badge bg-${getPriorityColor(complaint.priority)}">
+                  <i class="bi bi-exclamation-triangle me-1"></i>${complaint.priority}
+                </span>
+              </td>
+              <td>
+                <span class="badge bg-${getStatusColor(complaint.status)}">
+                  ${getStatusIcon(complaint.status)} ${complaint.status}
+                </span>
+              </td>
+              <td>
+                <small>${new Date(complaint.createdAt || complaint.created_at).toLocaleDateString()}</small>
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <button class="btn btn-outline-primary btn-sm" onclick="viewComplaint('${complaint._id}')" title="View Details">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" onclick="downloadComplaint('${complaint._id}')" title="Download">
+                    <i class="bi bi-download"></i>
+                  </button>
+                  ${complaint.status === 'pending' ? `
+                    <button class="btn btn-outline-warning btn-sm" onclick="editComplaint('${complaint._id}')" title="Edit">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  ` : ''}
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    
+    ${complaints.length === 0 ? `
+      <div class="empty-state">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <h5 class="mt-3 text-muted">No Complaints Found</h5>
+        <p class="text-muted">You haven't filed any complaints yet.</p>
+        <button class="btn btn-primary" onclick="window.location.hash='#/file-complaint'">
+          <i class="bi bi-plus-circle me-2"></i>File Your First Complaint
+        </button>
+      </div>
+    ` : ''}
+  `;
+
+  document.getElementById('complaintsTableContainer').innerHTML = tableHTML;
+}
+
+// Load real complaints data from API
+async function loadMyComplaintsData() {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.log('❌ No auth token found');
+      return [];
+    }
+
+    console.log('📋 Fetching user complaints from API...');
+    const response = await fetch(`${BASE_URL}/api/complaints/user`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    
+    if (result.success && result.data && result.data.complaints) {
+      console.log('✅ User complaints loaded:', result.data.complaints.length);
+      return result.data.complaints;
+    } else {
+      console.log('⚠️ No complaints found or API error:', result.message);
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Error loading complaints:', error);
+    return [];
+  }
+}
+
+// Helper functions for status and priority
+function getStatusIcon(status) {
+  const icons = {
+    'pending': '<i class="bi bi-clock"></i>',
+    'under-investigation': '<i class="bi bi-search"></i>',
+    'resolved': '<i class="bi bi-check-circle"></i>',
+    'rejected': '<i class="bi bi-x-circle"></i>',
+    'high_priority': '<i class="bi bi-exclamation-triangle-fill"></i>'
+  };
+  return icons[status] || '<i class="bi bi-info-circle"></i>';
+}
+
+function downloadComplaint(complaintId) {
+  // Placeholder for download functionality
+  showNotification('info', 'Download feature coming soon!', 3000);
+}
+
+function editComplaint(complaintId) {
+  // Placeholder for edit functionality
+  showNotification('info', 'Edit feature coming soon!', 3000);
 }
 
 function renderEmergencyComplaint() {
@@ -1419,20 +1818,21 @@ function attachComplaintFormListeners() {
   if (captureBtn) {
     captureBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      captureBtn.disabled = true;
-      captureBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...';
       
-      try {
-        const location = await getUserLocation();
-        const locationStr = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)} (±${location.accuracy.toFixed(0)}m)`;
-        document.getElementById('userLocation').value = locationStr;
-        document.getElementById('userLocation').setAttribute('data-location', JSON.stringify(location));
-        showNotification('success', 'Location captured successfully!', 3000);
-      } catch (error) {
-        showNotification('error', `Error: ${error.message}`, 5000);
-      } finally {
-        captureBtn.disabled = false;
-        captureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+      // Use the secure location capture function
+      const result = await captureUserLocation(captureBtn);
+      
+      if (result.success) {
+        document.getElementById('userLocation').value = result.locationStr;
+        document.getElementById('userLocation').setAttribute('data-location', JSON.stringify(result.location));
+        
+        if (result.fallback) {
+          showNotification('warning', 'Location captured using IP-based fallback (less accurate)', 4000);
+        } else {
+          showNotification('success', 'Location captured successfully!', 3000);
+        }
+      } else {
+        showNotification('error', `Location capture failed: ${result.error}`, 5000);
       }
     });
   }
@@ -1441,20 +1841,21 @@ function attachComplaintFormListeners() {
   if (emergencyCaptureBtn) {
     emergencyCaptureBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      emergencyCaptureBtn.disabled = true;
-      emergencyCaptureBtn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Capturing...';
       
-      try {
-        const location = await getUserLocation();
-        const locationStr = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)} (±${location.accuracy.toFixed(0)}m)`;
-        document.getElementById('emergencyUserLocation').value = locationStr;
-        document.getElementById('emergencyUserLocation').setAttribute('data-location', JSON.stringify(location));
-        showNotification('success', 'Location captured successfully!', 3000);
-      } catch (error) {
-        showNotification('error', `Error: ${error.message}`, 5000);
-      } finally {
-        emergencyCaptureBtn.disabled = false;
-        emergencyCaptureBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Capture';
+      // Use the secure location capture function
+      const result = await captureUserLocation(emergencyCaptureBtn);
+      
+      if (result.success) {
+        document.getElementById('emergencyUserLocation').value = result.locationStr;
+        document.getElementById('emergencyUserLocation').setAttribute('data-location', JSON.stringify(result.location));
+        
+        if (result.fallback) {
+          showNotification('warning', 'Location captured using IP-based fallback (less accurate)', 4000);
+        } else {
+          showNotification('success', 'Location captured successfully!', 3000);
+        }
+      } else {
+        showNotification('error', `Location capture failed: ${result.error}`, 5000);
       }
     });
   }
