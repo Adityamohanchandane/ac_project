@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { MongoClient } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 dotenv.config();
@@ -16,9 +16,17 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://adityachandane71_d
 const DATA_FILE = join(process.cwd(), 'data.json');
 
 // Multer configuration for file uploads
+const UPLOAD_DIR = join(process.cwd(), 'uploads');
+
+// Ensure uploads directory exists
+if (!existsSync(UPLOAD_DIR)) {
+  mkdirSync(UPLOAD_DIR, { recursive: true });
+  console.log('📁 Created uploads directory:', UPLOAD_DIR);
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
@@ -397,6 +405,50 @@ app.post('/api/police/login', async (req, res) => {
   } catch (error) {
     console.error('Police login error:', error);
     res.status(500).json({ success: false, message: 'Login failed' });
+  }
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'ObservX Police Complaint Management System API',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      register: '/api/auth/register',
+      login: '/api/auth/login',
+      complaints: '/api/complaints'
+    }
+  });
+});
+
+// Health check endpoint for debugging
+app.get('/api/health', async (req, res) => {
+  try {
+    const db = await connectToMongoDB();
+    const status = {
+      server: 'running',
+      mongodb: db ? 'connected' : 'disconnected',
+      uploads_dir: existsSync(UPLOAD_DIR) ? 'exists' : 'missing',
+      data_file: existsSync(DATA_FILE) ? 'exists' : 'missing',
+      timestamp: new Date().toISOString(),
+      env: {
+        port: PORT,
+        node_env: process.env.NODE_ENV,
+        render_hostname: process.env.RENDER_EXTERNAL_HOSTNAME || 'local'
+      }
+    };
+    
+    console.log('🏥 Health check requested:', status);
+    res.json({ success: true, status });
+  } catch (error) {
+    console.error('❌ Health check failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
