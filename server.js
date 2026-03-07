@@ -364,6 +364,32 @@ app.post('/api/police/login', async (req, res) => {
   }
 });
 
+// Get all complaints (for police dashboard)
+app.get('/api/complaints/all', authenticateUser, async (req, res) => {
+  try {
+    const database = await connectToMongoDB();
+    if (!database) {
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    const allComplaints = await complaintsCollection.find({}).sort({ createdAt: -1 }).toArray();
+    
+    console.log(`✅ Police dashboard: Found ${allComplaints.length} total complaints`);
+    
+    res.json({
+      success: true,
+      data: {
+        complaints: allComplaints,
+        total: allComplaints.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching all complaints:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch complaints' });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({

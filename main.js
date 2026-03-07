@@ -1531,7 +1531,7 @@ function renderPoliceDashboard() {
             <div class="col-md-3">
               <div class="card text-center">
                 <div class="card-body">
-                  <h5 class="card-title text-primary">${demoMode.demoComplaints.length}</h5>
+                  <h5 class="card-title text-primary" id="totalComplaintsCount">0</h5>
                   <p class="card-text">Total Complaints</p>
                 </div>
               </div>
@@ -1539,7 +1539,7 @@ function renderPoliceDashboard() {
             <div class="col-md-3">
               <div class="card text-center">
                 <div class="card-body">
-                  <h5 class="card-title text-danger">${demoMode.demoComplaints.filter(c => c.priority_level === 'emergency').length}</h5>
+                  <h5 class="card-title text-danger" id="emergencyComplaintsCount">0</h5>
                   <p class="card-text">Emergency</p>
                 </div>
               </div>
@@ -1547,7 +1547,7 @@ function renderPoliceDashboard() {
             <div class="col-md-3">
               <div class="card text-center">
                 <div class="card-body">
-                  <h5 class="card-title text-warning">${demoMode.demoComplaints.filter(c => c.status === 'pending').length}</h5>
+                  <h5 class="card-title text-warning" id="pendingComplaintsCount">0</h5>
                   <p class="card-text">Pending</p>
                 </div>
               </div>
@@ -1555,7 +1555,7 @@ function renderPoliceDashboard() {
             <div class="col-md-3">
               <div class="card text-center">
                 <div class="card-body">
-                  <h5 class="card-title text-info">${demoMode.demoComplaints.filter(c => c.status === 'under-investigation').length}</h5>
+                  <h5 class="card-title text-info" id="investigationComplaintsCount">0</h5>
                   <p class="card-text">Under Investigation</p>
                 </div>
               </div>
@@ -1581,26 +1581,15 @@ function renderPoliceDashboard() {
                       <th>Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    ${demoMode.demoComplaints.map(complaint => `
-                      <tr>
-                        <td>${complaint.complaint_id}</td>
-                        <td>${complaint.title}</td>
-                        <td>${complaint.category}</td>
-                        <td><span class="badge bg-${getPriorityColor(complaint.priority_level)}">${complaint.priority_level}</span></td>
-                        <td><span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span></td>
-                        <td>${complaint.user_email}</td>
-                        <td>${new Date(complaint.created_at).toLocaleDateString()}</td>
-                        <td>
-                          <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint.id}')">
-                            <i class="bi bi-eye"></i> View
-                          </button>
-                          <button class="btn btn-sm btn-outline-success" onclick="updateComplaint('${complaint.id}')">
-                            <i class="bi bi-pencil"></i> Update
-                          </button>
-                        </td>
-                      </tr>
-                    `).join('')}
+                  <tbody id="policeComplaintsTableBody">
+                    <tr>
+                      <td colspan="8" class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading complaints...</p>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -1609,7 +1598,119 @@ function renderPoliceDashboard() {
         </div>
       </div>
     </div>
+
+    <script>
+      // Load police dashboard data when page loads
+      setTimeout(() => loadPoliceDashboardData(), 100);
+    </script>
   `
+}
+
+// Load police dashboard data from MongoDB
+async function loadPoliceDashboardData() {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.error('No auth token found for police dashboard');
+      return;
+    }
+
+    // Load all complaints (police can see all complaints)
+    const response = await fetch(`${BASE_URL}/api/complaints/all`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      
+      if (result.success && result.data && result.data.complaints) {
+        const complaints = result.data.complaints;
+        
+        // Update statistics
+        const totalCount = complaints.length;
+        const emergencyCount = complaints.filter(c => c.priority === 'emergency').length;
+        const pendingCount = complaints.filter(c => c.status === 'pending').length;
+        const investigationCount = complaints.filter(c => c.status === 'under-investigation').length;
+        
+        document.getElementById('totalComplaintsCount').textContent = totalCount;
+        document.getElementById('emergencyComplaintsCount').textContent = emergencyCount;
+        document.getElementById('pendingComplaintsCount').textContent = pendingCount;
+        document.getElementById('investigationComplaintsCount').textContent = investigationCount;
+        
+        // Render complaints table
+        renderPoliceComplaintsTable(complaints);
+        
+        console.log(`✅ Police dashboard loaded: ${totalCount} complaints`);
+      } else {
+        console.error('Failed to load police dashboard data:', result.message);
+        showEmptyState();
+      }
+    } else {
+      console.error('Failed to fetch police dashboard data');
+      showEmptyState();
+    }
+  } catch (error) {
+    console.error('Error loading police dashboard:', error);
+    showEmptyState();
+  }
+}
+
+// Render police complaints table
+function renderPoliceComplaintsTable(complaints) {
+  const tableBody = document.getElementById('policeComplaintsTableBody');
+  
+  if (!tableBody) return;
+  
+  if (complaints.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          <i class="bi bi-inbox display-4 d-block mb-3"></i>
+          <p>No complaints found</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tableBody.innerHTML = complaints.map(complaint => `
+    <tr>
+      <td><span class="badge bg-secondary">${complaint.complaintId || complaint._id}</span></td>
+      <td>${complaint.title}</td>
+      <td>${complaint.category}</td>
+      <td><span class="badge bg-${getPriorityColor(complaint.priority)}">${complaint.priority}</span></td>
+      <td><span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status.replace(/_/g, ' ')}</span></td>
+      <td>${complaint.userId || 'Unknown'}</td>
+      <td>${new Date(complaint.createdAt).toLocaleDateString()}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint._id}')">
+          <i class="bi bi-eye"></i> View
+        </button>
+        <button class="btn btn-sm btn-outline-success" onclick="updateComplaint('${complaint._id}')">
+          <i class="bi bi-pencil"></i> Update
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Show empty state for police dashboard
+function showEmptyState() {
+  const tableBody = document.getElementById('policeComplaintsTableBody');
+  if (tableBody) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          <i class="bi bi-inbox display-4 d-block mb-3"></i>
+          <p>No complaints found</p>
+        </td>
+      </tr>
+    `;
+  }
 }
 
 function renderMyComplaints() {
