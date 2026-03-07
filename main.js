@@ -9,18 +9,30 @@ const getBackendUrl = () => {
   console.log('- protocol:', protocol);
   console.log('- hostname:', hostname);
   
-  // Handle both localhost and mobile access
+  // Handle localhost development
   if (hostname === "localhost" || hostname === "127.0.0.1") {
     const backendUrl = "http://localhost:3000";
     console.log('- Localhost detected, backendUrl:', backendUrl);
     return backendUrl;
   }
   
-  // For mobile and network access, try to detect the server IP
-  // This works for both local network and production
-  const serverHost = hostname.includes('localhost') ? 'localhost' : hostname;
-  const backendUrl = `${protocol}//${serverHost}:3000`;
-  console.log('- Network/Production detected, backendUrl:', backendUrl);
+  // Handle Render deployment
+  if (hostname.includes('onrender.com')) {
+    const backendUrl = `${protocol}//${hostname}`;
+    console.log('- Render deployment detected, backendUrl:', backendUrl);
+    return backendUrl;
+  }
+  
+  // Handle local network access (like your IP)
+  if (hostname.includes('10.172.176.108') || !hostname.includes('localhost')) {
+    const backendUrl = `${protocol}//${hostname}:3000`;
+    console.log('- Local network detected, backendUrl:', backendUrl);
+    return backendUrl;
+  }
+  
+  // Fallback
+  const backendUrl = `${protocol}//${hostname}:3000`;
+  console.log('- Fallback, backendUrl:', backendUrl);
   return backendUrl;
 };
 
