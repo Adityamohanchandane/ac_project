@@ -353,6 +353,169 @@ async function getUserLocation() {
   })
 }
 
+// Enhanced Geolocation Evidence Capture
+const captureGeolocationEvidence = async () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log('📍 Starting geolocation evidence capture...');
+      
+      // Try browser GPS first
+      if (navigator.geolocation) {
+        console.log('📱 Browser GPS available, requesting permission...');
+        
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const locationData = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              altitude: position.coords.altitude,
+              altitudeAccuracy: position.coords.altitudeAccuracy,
+              heading: position.coords.heading,
+              speed: position.coords.speed,
+              timestamp: new Date(position.timestamp).toISOString(),
+              method: 'gps'
+            };
+            
+            console.log('✅ GPS location captured:', locationData);
+            resolve(locationData);
+          },
+          async (error) => {
+            console.log('❌ GPS failed, trying IP-based location:', error.message);
+            const ipLocation = await getIPLocation();
+            resolve(ipLocation);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      } else {
+        console.log('❌ GPS not available, using IP-based location');
+        const ipLocation = await getIPLocation();
+        resolve(ipLocation);
+      }
+    } catch (error) {
+      console.error('❌ Geolocation capture failed:', error);
+      reject(error);
+    }
+  });
+};
+
+// IP-based location fallback
+const getIPLocation = async () => {
+  try {
+    console.log('🌐 Getting IP-based location...');
+    
+    // Try multiple IP location services
+    const services = [
+      'https://ipapi.co/json/',
+      'https://ipinfo.io/json',
+      'https://api.ipify.org?format=json'
+    ];
+    
+    for (const service of services) {
+      try {
+        const response = await fetch(service);
+        const data = await response.json();
+        
+        if (data.latitude && data.longitude) {
+          const locationData = {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            accuracy: 1000, // IP location is less accurate
+            city: data.city,
+            region: data.region,
+            country: data.country_name || data.country,
+            ip: data.ip,
+            timestamp: new Date().toISOString(),
+            method: 'ip'
+          };
+          
+          console.log('✅ IP location captured:', locationData);
+          return locationData;
+        }
+      } catch (error) {
+        console.log(`❌ Service ${service} failed:`, error.message);
+        continue;
+      }
+    }
+    
+    // If all services fail, return basic info
+    const fallbackLocation = {
+      latitude: 0,
+      longitude: 0,
+      accuracy: 9999,
+      error: 'Location services unavailable',
+      timestamp: new Date().toISOString(),
+      method: 'fallback'
+    };
+    
+    console.log('⚠️ Using fallback location:', fallbackLocation);
+    return fallbackLocation;
+    
+  } catch (error) {
+    console.error('❌ IP location failed:', error);
+    return {
+      latitude: 0,
+      longitude: 0,
+      accuracy: 9999,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+      method: 'error'
+    };
+  }
+};
+
+// Create evidence metadata object
+const createEvidenceMetadata = async (photoFile) => {
+  try {
+    console.log('📸 Creating evidence metadata for photo...');
+    
+    const location = await captureGeolocationEvidence();
+    
+    const evidence = {
+      photo: photoFile ? {
+        name: photoFile.name,
+        size: photoFile.size,
+        type: photoFile.type,
+        lastModified: new Date(photoFile.lastModified).toISOString()
+      } : null,
+      location: location,
+      timestamp: new Date().toISOString(),
+      device: {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        cookieEnabled: navigator.cookieEnabled,
+        onLine: navigator.onLine,
+        hardwareConcurrency: navigator.hardwareConcurrency,
+        deviceMemory: navigator.deviceMemory,
+        vendor: navigator.vendor
+      },
+      browser: {
+        appName: navigator.appName,
+        appVersion: navigator.appVersion,
+        vendor: navigator.vendor
+      },
+      screen: {
+        width: screen.width,
+        height: screen.height,
+        colorDepth: screen.colorDepth,
+        pixelDepth: screen.pixelDepth
+      }
+    };
+    
+    console.log('✅ Evidence metadata created:', evidence);
+    return evidence;
+    
+  } catch (error) {
+    console.error('❌ Failed to create evidence metadata:', error);
+    throw error;
+  }
+};
+
 // API functions for complaints
 const fetchUserComplaints = async () => {
   try {
@@ -1118,32 +1281,37 @@ function renderMyComplaints() {
           
           <div class="card">
             <div class="card-body">
-              <div id="complaints-loading" class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                  <span class="visually-hidden">Loading complaints...</span>
-                </div>
-                <p class="mt-2">Loading your complaints...</p>
-              </div>
-              
-              <div id="complaints-table" style="display: none;">
-                <div class="table-responsive">
-                  <table class="table table-striped">
-                    <thead>
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Complaint ID</th>
+                      <th>Title</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                      <th>Priority</th>
+                      <th>Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${demoMode.demoComplaints.map(complaint => `
                       <tr>
-                        <th>Complaint ID</th>
-                        <th>Title</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                        <th>Priority</th>
-                        <th>Date</th>
-                        <th>Actions</th>
+                        <td>${complaint.complaint_id}</td>
+                        <td>${complaint.title}</td>
+                        <td>${complaint.category}</td>
+                        <td><span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span></td>
+                        <td><span class="badge bg-${getPriorityColor(complaint.priority_level)}">${complaint.priority_level}</span></td>
+                        <td>${new Date(complaint.created_at).toLocaleDateString()}</td>
+                        <td>
+                          <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint.id}')">
+                            <i class="bi bi-eye"></i> View
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody id="complaints-tbody">
-                      <!-- Complaints will be loaded here -->
-                    </tbody>
-                  </table>
-                </div>
+                    `).join('')}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1326,6 +1494,26 @@ function attachComplaintFormListeners() {
         formData.append('userLocation', document.getElementById('userLocation').getAttribute('data-location'));
         formData.append('priority', 'normal');
 
+        // Add geolocation evidence metadata for each uploaded file
+        const fileInput = complaintForm.querySelector('input[type="file"]');
+        if (fileInput && fileInput.files.length > 0) {
+          console.log('📸 Processing uploaded files with geolocation evidence...');
+          
+          for (let i = 0; i < fileInput.files.length; i++) {
+            const file = fileInput.files[i];
+            console.log(`📸 Processing file ${i + 1}: ${file.name}`);
+            
+            try {
+              const evidenceMetadata = await createEvidenceMetadata(file);
+              formData.append(`evidence_${i}`, JSON.stringify(evidenceMetadata));
+              console.log(`✅ Evidence metadata added for file ${i + 1}`);
+            } catch (error) {
+              console.error(`❌ Failed to create evidence metadata for file ${i + 1}:`, error);
+              // Continue with other files even if one fails
+            }
+          }
+        }
+
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${BASE_URL}/api/complaints`, {
           method: 'POST',
@@ -1339,7 +1527,7 @@ function attachComplaintFormListeners() {
         const result = await response.json();
 
         if (result.success) {
-          showNotification('success', 'Complaint filed successfully!');
+          showNotification('success', 'Complaint filed successfully with geolocation evidence!');
           window.location.hash = '#/my-complaints';
         } else {
           showNotification('error', result.message || 'Failed to file complaint');
@@ -1388,6 +1576,26 @@ function attachComplaintFormListeners() {
         formData.append('userLocation', document.getElementById('emergencyUserLocation').getAttribute('data-location'));
         formData.append('priority', 'emergency');
 
+        // Add geolocation evidence metadata for each uploaded file
+        const fileInput = emergencyComplaintForm.querySelector('input[type="file"]');
+        if (fileInput && fileInput.files.length > 0) {
+          console.log('📸 Processing uploaded files with geolocation evidence for emergency complaint...');
+          
+          for (let i = 0; i < fileInput.files.length; i++) {
+            const file = fileInput.files[i];
+            console.log(`📸 Processing file ${i + 1}: ${file.name}`);
+            
+            try {
+              const evidenceMetadata = await createEvidenceMetadata(file);
+              formData.append(`evidence_${i}`, JSON.stringify(evidenceMetadata));
+              console.log(`✅ Evidence metadata added for file ${i + 1}`);
+            } catch (error) {
+              console.error(`❌ Failed to create evidence metadata for file ${i + 1}:`, error);
+              // Continue with other files even if one fails
+            }
+          }
+        }
+
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${BASE_URL}/api/complaints`, {
           method: 'POST',
@@ -1401,7 +1609,7 @@ function attachComplaintFormListeners() {
         const result = await response.json();
 
         if (result.success) {
-          showNotification('success', 'Emergency complaint filed successfully! Help is on the way.');
+          showNotification('success', 'Emergency complaint filed successfully with geolocation evidence! Help is on the way.');
           window.location.hash = '#/my-complaints';
         } else {
           showNotification('error', result.message || 'Failed to file emergency complaint');

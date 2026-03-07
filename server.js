@@ -76,6 +76,8 @@ const connectToMongoDB = async () => {
     }
     
     console.log('🔗 Attempting MongoDB connection...');
+    
+    // Simple connection without SSL validation for now
     client = new MongoClient(MONGODB_URI);
     await client.connect();
     db = client.db('observx');
@@ -265,56 +267,93 @@ app.post('/api/auth/login', async (req, res) => {
     // Connect to MongoDB
     console.log('- Connecting to MongoDB...');
     const database = await connectToMongoDB();
-    if (!database) {
-      console.error('❌ Database connection failed');
-      return res.status(500).json({ success: false, message: 'Database connection failed' });
-    }
-    console.log('✅ MongoDB connected successfully');
     
-    const usersCollection = database.collection('users');
-    console.log('- Searching for user in MongoDB:', email);
-    const user = await usersCollection.findOne({ email });
-    console.log('- User found in MongoDB:', !!user);
+    let user = null;
+    let dataSource = 'unknown';
+    
+    if (database) {
+      console.log('✅ MongoDB connected successfully');
+      const usersCollection = database.collection('users');
+      console.log('- Searching for user in MongoDB:', email);
+      user = await usersCollection.findOne({ email });
+      dataSource = 'mongodb';
+      console.log('- User found in MongoDB:', !!user);
+    } else {
+      console.log('📁 MongoDB failed, using file-based storage');
+      const data = loadFromFile();
+      user = data.users.find(u => u.email === email);
+      dataSource = 'file';
+      console.log('- User found in file storage:', !!user);
+    }
     
     if (user) {
-      console.log('- User data from MongoDB:', { 
-        id: user._id, 
+      console.log('- User data from', dataSource, ':', { 
+        id: user._id || user.id, 
         fullName: user.fullName, 
         email: user.email, 
         role: user.role,
         hasPassword: !!user.password,
         passwordLength: user.password ? user.password.length : 0
       });
-      console.log('- Starting bcrypt password comparison...');
-      const startTime = Date.now();
-      const passwordMatch = await bcrypt.compare(password, user.password);
-      const endTime = Date.now();
-      console.log('- Password comparison completed in:', (endTime - startTime), 'ms');
-      console.log('- Password match result:', passwordMatch);
       
-      if (passwordMatch) {
-        const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
-        console.log('- Authentication token generated successfully');
-        console.log('- Sending success response to client');
-        res.json({
-          success: true,
-          data: { 
-            user: { 
-              id: user._id, 
-              fullName: user.fullName, 
-              email: user.email, 
-              role: user.role 
-            }, 
-            token 
-          }
-        });
-        console.log('✅ Login completed successfully');
+      if (dataSource === 'file') {
+        // For file storage, passwords are plain text (for demo)
+        const passwordMatch = (user.password === password);
+        console.log('- File-based password comparison result:', passwordMatch);
+        
+        if (passwordMatch) {
+          const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+          console.log('- Authentication token generated successfully');
+          console.log('- Sending success response to client');
+          res.json({
+            success: true,
+            data: { 
+              user: { 
+                id: user._id || user.id, 
+                fullName: user.fullName, 
+                email: user.email, 
+                role: user.role 
+              }, 
+              token 
+            }
+          });
+          console.log('✅ Login completed successfully via file storage');
+          return;
+        }
       } else {
-        console.log('- ❌ Password mismatch - authentication failed');
-        res.status(401).json({ success: false, message: 'Invalid email or password' });
+        // For MongoDB, use bcrypt
+        console.log('- Starting bcrypt password comparison...');
+        const startTime = Date.now();
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        const endTime = Date.now();
+        console.log('- Password comparison completed in:', (endTime - startTime), 'ms');
+        console.log('- Password match result:', passwordMatch);
+        
+        if (passwordMatch) {
+          const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+          console.log('- Authentication token generated successfully');
+          console.log('- Sending success response to client');
+          res.json({
+            success: true,
+            data: { 
+              user: { 
+                id: user._id, 
+                fullName: user.fullName, 
+                email: user.email, 
+                role: user.role 
+              }, 
+              token 
+            }
+          });
+          console.log('✅ Login completed successfully via MongoDB');
+          return;
+        }
       }
+      
+      console.log('- ❌ Password mismatch - authentication failed');
+      res.status(401).json({ success: false, message: 'Invalid email or password' });
     } else {
-      console.log('- ❌ User not found in MongoDB - authentication failed');
+      console.log('- ❌ User not found in', dataSource, '- authentication failed');
       res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
   } catch (error) {
@@ -369,61 +408,108 @@ app.post('/api/auth/register', async (req, res) => {
     // Connect to MongoDB
     console.log('- Connecting to MongoDB for registration...');
     const database = await connectToMongoDB();
-    if (!database) {
-      console.error('❌ Database connection failed during registration');
-      return res.status(500).json({ success: false, message: 'Database connection failed' });
-    }
-    console.log('✅ MongoDB connected for registration');
     
-    const usersCollection = database.collection('users');
+    let existingUser = null;
+    let dataSource = 'unknown';
     
-    // Check if user already exists
-    console.log('- Checking if user already exists:', email);
-    const existingUser = await usersCollection.findOne({ email });
-    console.log('- Existing user found:', !!existingUser);
-    
-    if (existingUser) {
-      console.log('- ❌ User already exists with this email');
-      return res.status(400).json({ success: false, message: 'User already exists with this email' });
-    }
-    
-    // Hash password
-    console.log('- Starting password hashing...');
-    const startTime = Date.now();
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const endTime = Date.now();
-    console.log('- Password hashing completed in:', (endTime - startTime), 'ms');
-    console.log('- Hashed password length:', hashedPassword.length);
-    
-    // Create new user
-    const newUser = {
-      fullName,
-      email,
-      mobile,
-      address,
-      password: hashedPassword,
-      role: 'user',
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
-    
-    console.log('- Inserting new user into MongoDB...');
-    const result = await usersCollection.insertOne(newUser);
-    console.log('- ✅ User inserted successfully with ID:', result.insertedId);
-    
-    res.status(201).json({
-      success: true,
-      message: 'Registration successful',
-      data: {
-        user: {
-          id: result.insertedId,
-          fullName: newUser.fullName,
-          email: newUser.email,
-          role: newUser.role
-        }
+    if (database) {
+      console.log('✅ MongoDB connected for registration');
+      const usersCollection = database.collection('users');
+      
+      // Check if user already exists
+      console.log('- Checking if user already exists in MongoDB:', email);
+      existingUser = await usersCollection.findOne({ email });
+      dataSource = 'mongodb';
+      console.log('- Existing user found in MongoDB:', !!existingUser);
+      
+      if (existingUser) {
+        console.log('- ❌ User already exists with this email');
+        return res.status(400).json({ success: false, message: 'User already exists with this email' });
       }
-    });
-    console.log('✅ Registration completed successfully');
+      
+      // Hash password
+      console.log('- Starting password hashing...');
+      const startTime = Date.now();
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const endTime = Date.now();
+      console.log('- Password hashing completed in:', (endTime - startTime), 'ms');
+      console.log('- Hashed password length:', hashedPassword.length);
+      
+      // Create new user
+      const newUser = {
+        fullName,
+        email,
+        mobile,
+        address,
+        password: hashedPassword,
+        role: 'user',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+      
+      console.log('- Inserting new user into MongoDB...');
+      const result = await usersCollection.insertOne(newUser);
+      console.log('- ✅ User inserted successfully with ID:', result.insertedId);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful',
+        data: {
+          user: {
+            id: result.insertedId,
+            fullName: newUser.fullName,
+            email: newUser.email,
+            role: newUser.role
+          }
+        }
+      });
+      console.log('✅ Registration completed successfully via MongoDB');
+    } else {
+      console.log('📁 MongoDB failed, using file-based storage for registration');
+      const data = loadFromFile();
+      
+      // Check if user already exists in file
+      existingUser = data.users.find(u => u.email === email);
+      dataSource = 'file';
+      console.log('- Existing user found in file storage:', !!existingUser);
+      
+      if (existingUser) {
+        console.log('- ❌ User already exists with this email');
+        return res.status(400).json({ success: false, message: 'User already exists with this email' });
+      }
+      
+      // Create new user (plain text password for demo)
+      const newUser = {
+        _id: `user_${Date.now()}`,
+        fullName,
+        email,
+        mobile,
+        address,
+        password: password, // Plain text for file storage demo
+        role: 'user',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+      
+      console.log('- Adding new user to file storage...');
+      data.users.push(newUser);
+      saveToFile(data);
+      console.log('- ✅ User saved to file with ID:', newUser._id);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful',
+        data: {
+          user: {
+            id: newUser._id,
+            fullName: newUser.fullName,
+            email: newUser.email,
+            role: newUser.role
+          }
+        }
+      });
+      console.log('✅ Registration completed successfully via file storage');
+    }
   } catch (error) {
     console.error('❌ Registration error:', error);
     console.error('- Error stack:', error.stack);
@@ -470,14 +556,52 @@ app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async
   try {
     const { title, description, category, incidentDate, incidentLocation, userLocation, priority = 'medium' } = req.body;
     
-    // Handle uploaded files
-    const uploadedFiles = req.files ? req.files.map(file => ({
-      filename: file.filename,
-      originalname: file.originalname,
-      path: file.path,
-      size: file.size,
-      mimetype: file.mimetype
-    })) : [];
+    // Handle uploaded files with geolocation evidence metadata
+    const uploadedFiles = [];
+    const evidenceMetadata = [];
+    
+    if (req.files && req.files.length > 0) {
+      console.log('📸 Processing uploaded files with geolocation evidence...');
+      
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        
+        // Basic file info
+        const fileInfo = {
+          filename: file.filename,
+          originalname: file.originalname,
+          path: file.path,
+          size: file.size,
+          mimetype: file.mimetype,
+          uploadDate: new Date().toISOString()
+        };
+        
+        // Look for evidence metadata for this file
+        const evidenceKey = `evidence_${i}`;
+        let metadata = null;
+        
+        if (req.body[evidenceKey]) {
+          try {
+            metadata = JSON.parse(req.body[evidenceKey]);
+            console.log(`✅ Evidence metadata found for file ${i + 1}:`, metadata);
+          } catch (error) {
+            console.error(`❌ Failed to parse evidence metadata for file ${i + 1}:`, error);
+          }
+        }
+        
+        uploadedFiles.push({
+          ...fileInfo,
+          evidence: metadata || {
+            error: 'No evidence metadata available',
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        if (metadata) {
+          evidenceMetadata.push(metadata);
+        }
+      }
+    }
     
     const database = await connectToMongoDB();
     if (!database) {
@@ -497,16 +621,28 @@ app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async
         userLocation: JSON.parse(userLocation),
         userId: req.user?.id || 'user_demo_1',
         evidence: uploadedFiles,
+        evidenceMetadata: evidenceMetadata,
         createdAt: new Date().toISOString()
       };
       
       data.complaints.unshift(newComplaint);
       saveToFile(data);
       
+      console.log('✅ Complaint saved to file with geolocation evidence:', newComplaint.complaintId);
+      
       return res.status(201).json({
         success: true,
-        message: 'Complaint filed successfully',
-        data: { complaint: { id: newComplaint._id, complaintId: newComplaint.complaintId, title: newComplaint.title, status: newComplaint.status } }
+        message: 'Complaint filed successfully with geolocation evidence',
+        data: { 
+          complaint: { 
+            id: newComplaint._id, 
+            complaintId: newComplaint.complaintId, 
+            title: newComplaint.title, 
+            status: newComplaint.status,
+            evidenceCount: uploadedFiles.length,
+            hasGeolocationEvidence: evidenceMetadata.length > 0
+          } 
+        }
       });
     }
     
@@ -522,26 +658,31 @@ app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async
       userLocation: JSON.parse(userLocation),
       userId: req.user?.id || 'user_demo_1',
       evidence: uploadedFiles,
+      evidenceMetadata: evidenceMetadata,
       createdAt: new Date().toISOString()
     };
     
     const result = await complaintsCollection.insertOne(newComplaint);
     const complaintId = `COMP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
     
+    console.log('✅ Complaint saved to MongoDB with geolocation evidence:', complaintId);
+    
     res.status(201).json({
       success: true,
-      message: 'Complaint filed successfully',
+      message: 'Complaint filed successfully with geolocation evidence',
       data: { 
         complaint: { 
           id: result.insertedId, 
           complaintId, 
           title: newComplaint.title, 
-          status: newComplaint.status 
+          status: newComplaint.status,
+          evidenceCount: uploadedFiles.length,
+          hasGeolocationEvidence: evidenceMetadata.length > 0
         } 
       }
     });
   } catch (error) {
-    console.error('Error filing complaint:', error);
+    console.error('Error filing complaint with geolocation evidence:', error);
     res.status(500).json({ success: false, message: 'Failed to file complaint' });
   }
 });
@@ -550,4 +691,9 @@ app.listen(PORT, '0.0.0.0', () => {
   initializeDemoData();
   console.log(`🌐 Server running on http://0.0.0.0:${PORT}`);
   console.log(`📱 Mobile access: http://<your-local-ip>:${PORT}`);
+  
+  // Render deployment info
+  if (process.env.RENDER) {
+    console.log(`🚀 Deployed on Render: https://${process.env.RENDER_EXTERNAL_HOSTNAME}`);
+  }
 });

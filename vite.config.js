@@ -18,9 +18,25 @@ export default defineConfig({
     assetsInlineLimit: 4096
   },
   server: {
-    host: "0.0.0.0",
+    host: true,
     port: 3002,
-    strictPort: true
+    strictPort: true,
+    allowedHosts: [
+      'ac-project-g7c0.onrender.com',
+      'localhost',
+      '127.0.0.1',
+      '.onrender.com'
+    ]
+  },
+  preview: {
+    host: true,
+    port: 4173,
+    allowedHosts: [
+      'ac-project-g7c0.onrender.com',
+      'localhost',
+      '127.0.0.1',
+      '.onrender.com'
+    ]
   },
   define: {
     'process.env.NODE_ENV': '"production"'
