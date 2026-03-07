@@ -1941,7 +1941,30 @@ function renderEmergencyComplaint() {
               </div>
               <div class="mb-3">
                 <label class="form-label">Description <span class="text-danger">*</span></label>
-                <textarea class="form-control" id="emergencyDescription" rows="4" placeholder="Describe the emergency situation" required></textarea>
+                <textarea class="form-control" id="emergencyDescription" rows="4" placeholder="Describe emergency situation" required></textarea>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Emergency Photo Evidence <span class="text-info">(Optional but recommended)</span></label>
+                <div class="emergency-photo-section">
+                  <div class="photo-preview" id="emergencyPhotoPreview" style="display: none;">
+                    <img id="emergencyPhotoImg" src="" alt="Emergency photo" style="max-width: 100%; max-height: 200px; border-radius: 8px; margin-bottom: 10px;">
+                    <div class="photo-actions">
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearEmergencyPhoto()">
+                        <i class="bi bi-trash"></i> Remove Photo
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-primary" onclick="retakeEmergencyPhoto()">
+                        <i class="bi bi-camera"></i> Retake Photo
+                      </button>
+                    </div>
+                  </div>
+                  <div class="photo-capture" id="emergencyPhotoCapture">
+                    <button type="button" class="btn btn-outline-danger btn-lg w-100" onclick="captureEmergencyPhoto()">
+                      <i class="bi bi-camera-fill"></i> Capture Emergency Photo
+                    </button>
+                    <small class="text-muted">Take a photo of the emergency situation (if safe to do so)</small>
+                  </div>
+                  <input type="file" id="emergencyPhotoInput" accept="image/*" capture="environment" style="display: none;">
+                </div>
               </div>
               <div id="emergencyComplaintAlert"></div>
               <button type="submit" class="btn btn-danger btn-lg w-100">
@@ -1953,6 +1976,23 @@ function renderEmergencyComplaint() {
       </div>
     </div>
   `
+}
+
+// Emergency photo capture functions
+function captureEmergencyPhoto() {
+  document.getElementById('emergencyPhotoInput').click();
+}
+
+function clearEmergencyPhoto() {
+  document.getElementById('emergencyPhotoImg').src = '';
+  document.getElementById('emergencyPhotoPreview').style.display = 'none';
+  document.getElementById('emergencyPhotoCapture').style.display = 'block';
+  document.getElementById('emergencyPhotoInput').value = '';
+}
+
+function retakeEmergencyPhoto() {
+  clearEmergencyPhoto();
+  captureEmergencyPhoto();
 }
 
 // Helper functions
@@ -2030,6 +2070,26 @@ function attachComplaintFormListeners() {
         }
       } else {
         showNotification('error', `Location capture failed: ${result.error}`, 5000);
+      }
+    });
+  }
+
+  // Emergency photo capture functions
+  
+  const emergencyPhotoInput = document.getElementById('emergencyPhotoInput');
+  const emergencyPhotoCapture = document.getElementById('emergencyPhotoCapture');
+  
+  if (emergencyPhotoInput && emergencyPhotoCapture) {
+    emergencyPhotoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById('emergencyPhotoImg').src = e.target.result;
+          document.getElementById('emergencyPhotoPreview').style.display = 'block';
+          emergencyPhotoCapture.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
       }
     });
   }
@@ -2152,22 +2212,29 @@ function attachComplaintFormListeners() {
         formData.append('priority', 'emergency');
 
         // Add geolocation evidence metadata for each uploaded file
-        const fileInput = emergencyComplaintForm.querySelector('input[type="file"]');
+        const fileInput = emergencyComplaintForm.querySelector('#emergencyPhotoInput');
         if (fileInput && fileInput.files.length > 0) {
           console.log('📸 Processing uploaded files with geolocation evidence for emergency complaint...');
           
           for (let i = 0; i < fileInput.files.length; i++) {
             const file = fileInput.files[i];
-            console.log(`📸 Processing file ${i + 1}: ${file.name}`);
+            console.log(`📎 Processing emergency file ${i + 1}:`, file.name);
             
-            try {
-              const evidenceMetadata = await createEvidenceMetadata(file);
-              formData.append(`evidence_${i}`, JSON.stringify(evidenceMetadata));
-              console.log(`✅ Evidence metadata added for file ${i + 1}`);
-            } catch (error) {
-              console.error(`❌ Failed to create evidence metadata for file ${i + 1}:`, error);
-              // Continue with other files even if one fails
-            }
+            // Add file to FormData (it will be processed by multer on backend)
+            formData.append('evidence', file);
+            
+            // Add metadata for this file
+            const metadata = {
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.type,
+              uploadType: 'emergency',
+              timestamp: new Date().toISOString(),
+              userLocation: JSON.parse(document.getElementById('emergencyUserLocation').getAttribute('data-location')),
+              emergencyType: document.getElementById('emergencyCategory').value
+            };
+            
+            formData.append(`evidenceMetadata_${i}`, JSON.stringify(metadata));
           }
         }
 
@@ -2176,7 +2243,6 @@ function attachComplaintFormListeners() {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
-            // Don't set Content-Type for FormData - browser sets it automatically with boundary
           },
           body: formData
         });
