@@ -1587,16 +1587,26 @@ function renderMyComplaints() {
 
 // Function to render complaints table with real data
 function renderComplaintsTable(complaints) {
+  console.log('🎨 Rendering complaints table with data:', complaints);
+  console.log('- Number of complaints:', complaints.length);
+  
   const totalCount = complaints.length;
   const resolvedCount = complaints.filter(c => c.status === 'resolved').length;
   const pendingCount = complaints.filter(c => c.status === 'pending').length;
   const investigationCount = complaints.filter(c => c.status === 'under-investigation').length;
 
+  console.log('- Statistics:', { totalCount, resolvedCount, pendingCount, investigationCount });
+
   // Update statistics
-  document.getElementById('totalCount').textContent = totalCount;
-  document.getElementById('resolvedCount').textContent = resolvedCount;
-  document.getElementById('pendingCount').textContent = pendingCount;
-  document.getElementById('investigationCount').textContent = investigationCount;
+  const totalElement = document.getElementById('totalCount');
+  const resolvedElement = document.getElementById('resolvedCount');
+  const pendingElement = document.getElementById('pendingCount');
+  const investigationElement = document.getElementById('investigationCount');
+  
+  if (totalElement) totalElement.textContent = totalCount;
+  if (resolvedElement) resolvedElement.textContent = resolvedCount;
+  if (pendingElement) pendingElement.textContent = pendingCount;
+  if (investigationElement) investigationElement.textContent = investigationCount;
 
   // Render table
   const tableHTML = `
@@ -1674,7 +1684,13 @@ function renderComplaintsTable(complaints) {
     ` : ''}
   `;
 
-  document.getElementById('complaintsTableContainer').innerHTML = tableHTML;
+  const tableContainer = document.getElementById('complaintsTableContainer');
+  if (tableContainer) {
+    tableContainer.innerHTML = tableHTML;
+    console.log('✅ Table HTML inserted into container');
+  } else {
+    console.error('❌ Table container element not found!');
+  }
 }
 
 // Load real complaints data from API
@@ -1687,6 +1703,10 @@ async function loadMyComplaintsData() {
     }
 
     console.log('📋 Fetching user complaints from API...');
+    console.log('- Token exists:', !!token);
+    console.log('- Token length:', token.length);
+    console.log('- BASE_URL:', BASE_URL);
+    
     const response = await fetch(`${BASE_URL}/api/complaints/user`, {
       method: 'GET',
       headers: {
@@ -1695,17 +1715,25 @@ async function loadMyComplaintsData() {
       }
     });
 
+    console.log('- Response status:', response.status);
+    console.log('- Response ok:', response.ok);
+
     const result = await response.json();
+    console.log('- Full API response:', result);
     
     if (result.success && result.data && result.data.complaints) {
       console.log('✅ User complaints loaded:', result.data.complaints.length);
+      console.log('- Complaints details:', result.data.complaints);
       return result.data.complaints;
     } else {
       console.log('⚠️ No complaints found or API error:', result.message);
+      console.log('- Result structure:', result);
       return [];
     }
   } catch (error) {
     console.error('❌ Error loading complaints:', error);
+    console.error('- Error details:', error.message);
+    console.error('- Stack trace:', error.stack);
     return [];
   }
 }
@@ -1720,6 +1748,37 @@ function getStatusIcon(status) {
     'high_priority': '<i class="bi bi-exclamation-triangle-fill"></i>'
   };
   return icons[status] || '<i class="bi bi-info-circle"></i>';
+}
+
+// Load and render complaints data
+async function loadMyComplaintsDataAndRender() {
+  try {
+    console.log('📋 Loading and rendering user complaints...');
+    
+    // Load complaints data
+    const complaints = await loadMyComplaintsData();
+    
+    // Render the complaints table
+    renderComplaintsTable(complaints);
+    
+    console.log('✅ Complaints data loaded and rendered successfully');
+    
+  } catch (error) {
+    console.error('❌ Error loading and rendering complaints:', error);
+    
+    // Show error message in the table container
+    const tableContainer = document.getElementById('complaintsTableContainer');
+    if (tableContainer) {
+      tableContainer.innerHTML = `
+        <div class="text-center py-5">
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Failed to load complaints. Please try refreshing the page.
+          </div>
+        </div>
+      `;
+    }
+  }
 }
 
 function downloadComplaint(complaintId) {
