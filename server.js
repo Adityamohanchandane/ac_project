@@ -319,6 +319,9 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/police/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('🔐 Police Login Request Debug:');
+    console.log('- Email:', email);
+    console.log('- Password provided:', !!password);
     
     // Connect to MongoDB
     const database = await connectToMongoDB();
@@ -326,18 +329,35 @@ app.post('/api/police/login', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Database connection failed' });
     }
     
-    const policeCollection = database.collection('police');
-    const police = await policeCollection.findOne({ email });
+    // Search in users collection (allow any user for police login)
+    const usersCollection = database.collection('users');
+    console.log('- Searching for police user:', email);
+    const police = await usersCollection.findOne({ email });
+    console.log('- Police found:', !!police);
     
-    if (police && await bcrypt.compare(password, police.password)) {
-      const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
-      res.json({
-        success: true,
-        data: { police: { id: police._id, fullName: police.fullName, email: police.email, role: police.role }, token }
+    if (police) {
+      console.log('- Police data:', { 
+        id: police._id, 
+        fullName: police.fullName, 
+        email: police.email, 
+        role: police.role,
+        hasPassword: !!police.password
       });
-    } else {
-      res.status(401).json({ success: false, message: 'Invalid email or password' });
+      
+      const passwordMatch = await bcrypt.compare(password, police.password);
+      console.log('- Password match:', passwordMatch);
+      
+      if (passwordMatch) {
+        const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+        res.json({
+          success: true,
+          data: { police: { id: police._id, fullName: police.fullName, email: police.email, role: police.role }, token }
+        });
+        return;
+      }
     }
+    
+    res.status(401).json({ success: false, message: 'Invalid email or password' });
   } catch (error) {
     console.error('Police login error:', error);
     res.status(500).json({ success: false, message: 'Login failed' });
