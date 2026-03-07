@@ -1,478 +1,553 @@
-// Production Backend Server for LAN Demo
+// ObservX Backend Server with bcrypt and file fallback
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { MongoClient } from 'mongodb';
+import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://adityachandane71_db_user:adityamch2007@observex.fcerr8w.mongodb.net/observx?retryWrites=true&w=majority';
+const DATA_FILE = join(process.cwd(), 'data.json');
 
-// MongoDB Atlas connection with robust settings
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://adityachandane71_db_user:adityamch2007@observex.fcerr8w.mongodb.net/observx?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true&connectTimeoutMS=30000&socketTimeoutMS=45000';
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
 
-// Middleware
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, MP4, and WebM files are allowed.'));
+    }
+  }
+});
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log('🔍 Incoming Request:');
+  console.log('- Timestamp:', new Date().toISOString());
+  console.log('- Method:', req.method);
+  console.log('- URL:', req.url);
+  console.log('- Full URL:', req.protocol + '://' + req.get('host') + req.url);
+  console.log('- Headers:', req.headers);
+  console.log('- Origin:', req.headers.origin);
+  console.log('- IP:', req.ip || req.connection.remoteAddress || req.socket.remoteAddress);
+  console.log('- Host:', req.headers.host);
+  console.log('- User-Agent:', req.headers['user-agent']);
+  console.log('- Referer:', req.headers.referer);
+  console.log('- Content-Type:', req.headers['content-type']);
+  console.log('- Content-Length:', req.headers['content-length']);
+  console.log('---');
+  next();
+});
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', /^http:\/\/192\.168\.\d+\.\d+:3000/, /^http:\/\/10\.\d+\.\d+\.\d+:3000/],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+  origin: true,
+  credentials: true
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static('.'));
 
-// Serve static files
-app.use(express.static('dist'));
-
-// MongoDB connection management
 let db = null;
 let client = null;
 
 const connectToMongoDB = async () => {
   try {
-    if (client && client.isConnected()) {
+    if (client && client.topology && client.topology.isConnected()) {
       return db;
     }
-
-    client = new MongoClient(MONGODB_URI, {
-      connectTimeoutMS: 10000,
-      socketTimeoutMS: 30000,
-      serverSelectionTimeoutMS: 5000,
-      maxPoolSize: 10,
-      minPoolSize: 2,
-      retryWrites: true,
-      w: 'majority'
-    });
-
+    
+    console.log('🔗 Attempting MongoDB connection...');
+    client = new MongoClient(MONGODB_URI);
     await client.connect();
     db = client.db('observx');
-    console.log('✅ MongoDB Atlas connected successfully');
+    console.log('✅ MongoDB connected successfully');
     return db;
-
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error.message);
-    return null;
+    console.log('📁 Using file-based storage as fallback');
+    return null; // Return null to trigger file fallback
   }
 };
 
-// Demo user for fallback
-const DEMO_USER = {
-  id: 'demo_user_123',
-  email: 'demo@gmail.com',
-  password: '1234',
-  full_name: 'Demo User',
-  mobile: '9876543210',
-  address: 'Demo Address',
-  role: 'user'
+const loadFromFile = () => {
+  try {
+    if (existsSync(DATA_FILE)) {
+      return JSON.parse(readFileSync(DATA_FILE, 'utf8'));
+    }
+  } catch (error) {
+    console.error('File load error:', error.message);
+  }
+  return { users: [], complaints: [], police: [] };
+};
+
+const saveToFile = (data) => {
+  try {
+    writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('File save error:', error.message);
+  }
+};
+
+const initializeDemoData = () => {
+  const data = loadFromFile();
+  
+  if (!data.users.find(u => u.email === 'adii123@gmail.com')) {
+    const hashedPassword = bcrypt.hashSync('adii123', 12);
+    data.users.push({
+      _id: 'user_demo_1',
+      fullName: 'Aditya Chandane',
+      email: 'adii123@gmail.com',
+      mobile: '9876543210',
+      password: hashedPassword,
+      role: 'user',
+      isActive: true,
+      createdAt: new Date().toISOString()
+    });
+  }
+  
+  if (!data.police.find(p => p.email === 'adii123@gmail.com')) {
+    const hashedPassword = bcrypt.hashSync('adii123', 12);
+    data.police.push({
+      _id: 'police_demo_1',
+      fullName: 'Police Officer',
+      email: 'adii123@gmail.com',
+      badgeNumber: 'POL001',
+      password: hashedPassword,
+      role: 'police',
+      isActive: true,
+      createdAt: new Date().toISOString()
+    });
+  }
+  
+  if (data.complaints.length === 0) {
+    data.complaints.push({
+      _id: 'comp_demo_1',
+      complaintId: 'COMP-2026-001',
+      title: 'Emergency Complaint - Theft',
+      description: 'Emergency theft reported at Government Polytechnic campus.',
+      category: 'theft',
+      priority: 'emergency',
+      status: 'high_priority',
+      incidentDate: new Date().toISOString(),
+      incidentLocation: 'Government Polytechnic, Aurangabad',
+      userLocation: { latitude: 19.8762, longitude: 75.3433, accuracy: 10 },
+      userId: 'user_demo_1',
+      createdAt: new Date().toISOString()
+    });
+  }
+  
+  saveToFile(data);
+  return data;
+};
+
+// User authentication middleware
+const authenticateUser = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = Buffer.from(token, 'base64').toString();
+    const [email] = decoded.split(':');
+    
+    const database = await connectToMongoDB();
+    if (!database) {
+      // Fallback to file
+      const data = loadFromFile();
+      const user = data.users.find(u => u.email === email);
+      if (user) {
+        req.user = { id: user._id, email: user.email, role: user.role };
+        return next();
+      }
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+    
+    const usersCollection = database.collection('users');
+    const user = await usersCollection.findOne({ email });
+    
+    if (user) {
+      req.user = { id: user._id, email: user.email, role: user.role };
+      next();
+    } else {
+      res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(500).json({ success: false, message: 'Authentication failed' });
+  }
 };
 
 // API Routes
-
-// Health check
 app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    mongodb: db ? 'connected' : 'disconnected'
-  });
+  res.json({ success: true, message: 'Server running', mongodb: db ? 'connected' : 'disconnected' });
 });
 
-// Registration endpoint
-app.post('/api/registration', async (req, res) => {
+app.get('/api/auth/profile', async (req, res) => {
   try {
-    console.log('📝 Registration request:', req.body);
-
-    const { email, password, full_name, mobile, address, role = 'user' } = req.body;
-
-    // Validation
-    if (!email || !password || !full_name) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email, password, and full name are required'
-      });
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
     }
-
-    // Try MongoDB first
-    const database = await connectToMongoDB();
     
-    if (database) {
-      try {
-        const users = database.collection('users');
-
-        // Check if user exists
-        const existingUser = await users.findOne({ email: email.toLowerCase().trim() });
-        if (existingUser) {
-          return res.status(409).json({
-            success: false,
-            message: 'User with this email already exists'
-          });
-        }
-
-        // Create new user
-        const newUser = {
-          email: email.toLowerCase().trim(),
-          password, // In production, hash this password
-          full_name: full_name.trim(),
-          mobile: mobile || '',
-          address: address || '',
-          role,
-          created_at: new Date(),
-          updated_at: new Date()
-        };
-
-        const result = await users.insertOne(newUser);
-        
-        console.log('✅ User registered successfully:', email);
-        
-        return res.status(201).json({
-          success: true,
-          message: 'Registration successful',
-          user_id: result.insertedId.toString(),
-          user: {
-            id: result.insertedId.toString(),
-            email,
-            full_name,
-            mobile,
-            address,
-            role
-          }
+    const token = authHeader.substring(7);
+    // For now, we'll decode the simple token (email:timestamp)
+    const decoded = Buffer.from(token, 'base64').toString();
+    const [email] = decoded.split(':');
+    
+    const database = await connectToMongoDB();
+    if (!database) {
+      // Fallback to file
+      const data = loadFromFile();
+      const user = data.users.find(u => u.email === email);
+      if (user) {
+        return res.json({ 
+          success: true, 
+          data: { user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role } } 
         });
-
-      } catch (mongoError) {
-        console.error('❌ MongoDB operation failed:', mongoError.message);
-        // Fall through to demo mode
       }
+      return res.status(401).json({ success: false, message: 'Invalid token' });
     }
-
-    // Demo mode fallback
-    console.log('🔄 Using demo mode for registration');
-    return res.status(201).json({
-      success: true,
-      message: 'Registration successful (Demo Mode)',
-      user_id: 'demo_' + Date.now(),
-      user: {
-        id: 'demo_' + Date.now(),
-        email,
-        full_name,
-        mobile,
-        address,
-        role
-      }
-    });
-
+    
+    const usersCollection = database.collection('users');
+    const user = await usersCollection.findOne({ email });
+    
+    if (user) {
+      res.json({ 
+        success: true, 
+        data: { user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role } } 
+      });
+    } else {
+      res.status(401).json({ success: false, message: 'Invalid token' });
+    }
   } catch (error) {
-    console.error('❌ Registration error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error during registration: ' + error.message
-    });
+    console.error('Profile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get profile' });
   }
 });
 
-// Login endpoint
-app.post('/api/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
+  console.log('🔐 Login Request Debug:');
+  console.log('- Request body:', req.body);
+  console.log('- Request timestamp:', new Date().toISOString());
+  
   try {
-    console.log('🔐 Login request:', { email: req.body.email });
-
     const { email, password } = req.body;
-
-    // Validation
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email and password are required'
-      });
-    }
-
-    // Check for demo credentials first
-    if (email === DEMO_USER.email && password === DEMO_USER.password) {
-      console.log('✅ Demo login successful');
-      return res.json({
-        success: true,
-        message: 'Login successful (Demo Mode)',
-        user_id: DEMO_USER.id,
-        user: {
-          id: DEMO_USER.id,
-          email: DEMO_USER.email,
-          full_name: DEMO_USER.full_name,
-          mobile: DEMO_USER.mobile,
-          address: DEMO_USER.address,
-          role: DEMO_USER.role
-        }
-      });
-    }
-
-    // Try MongoDB
-    const database = await connectToMongoDB();
+    console.log('- Extracted email:', email);
+    console.log('- Password provided:', !!password);
+    console.log('- Password length:', password ? password.length : 0);
     
-    if (database) {
-      try {
-        const users = database.collection('users');
-        const user = await users.findOne({ email: email.toLowerCase().trim() });
-
-        if (!user) {
-          return res.status(404).json({
-            success: false,
-            message: 'No account found with that email'
-          });
-        }
-
-        // Simple password check (in production, use bcrypt)
-        if (password === user.password) {
-          const { password: _, ...userWithoutPassword } = user;
-          
-          console.log('✅ MongoDB login successful:', email);
-          
-          return res.json({
-            success: true,
-            message: 'Login successful',
-            user_id: user._id.toString(),
-            user: {
-              id: user._id.toString(),
-              email: user.email,
-              full_name: user.full_name,
-              mobile: user.mobile,
-              address: user.address,
-              role: user.role
-            }
-          });
-        } else {
-          return res.status(401).json({
-            success: false,
-            message: 'Incorrect password'
-          });
-        }
-
-      } catch (mongoError) {
-        console.error('❌ MongoDB login failed:', mongoError.message);
-        // Fall through to demo check
-      }
+    if (!email || !password) {
+      console.log('- Missing email or password');
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
-
-    // If MongoDB fails and not demo credentials
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid credentials. Use demo@gmail.com / 1234 for demo access'
-    });
-
+    
+    // Connect to MongoDB
+    console.log('- Connecting to MongoDB...');
+    const database = await connectToMongoDB();
+    if (!database) {
+      console.error('❌ Database connection failed');
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
+    }
+    console.log('✅ MongoDB connected successfully');
+    
+    const usersCollection = database.collection('users');
+    console.log('- Searching for user in MongoDB:', email);
+    const user = await usersCollection.findOne({ email });
+    console.log('- User found in MongoDB:', !!user);
+    
+    if (user) {
+      console.log('- User data from MongoDB:', { 
+        id: user._id, 
+        fullName: user.fullName, 
+        email: user.email, 
+        role: user.role,
+        hasPassword: !!user.password,
+        passwordLength: user.password ? user.password.length : 0
+      });
+      console.log('- Starting bcrypt password comparison...');
+      const startTime = Date.now();
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      const endTime = Date.now();
+      console.log('- Password comparison completed in:', (endTime - startTime), 'ms');
+      console.log('- Password match result:', passwordMatch);
+      
+      if (passwordMatch) {
+        const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+        console.log('- Authentication token generated successfully');
+        console.log('- Sending success response to client');
+        res.json({
+          success: true,
+          data: { 
+            user: { 
+              id: user._id, 
+              fullName: user.fullName, 
+              email: user.email, 
+              role: user.role 
+            }, 
+            token 
+          }
+        });
+        console.log('✅ Login completed successfully');
+      } else {
+        console.log('- ❌ Password mismatch - authentication failed');
+        res.status(401).json({ success: false, message: 'Invalid email or password' });
+      }
+    } else {
+      console.log('- ❌ User not found in MongoDB - authentication failed');
+      res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
   } catch (error) {
     console.error('❌ Login error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error during login: ' + error.message
-    });
+    console.error('- Error stack:', error.stack);
+    res.status(500).json({ success: false, message: 'Login failed due to server error' });
   }
 });
 
-// File complaint endpoint
-app.post('/api/file-complaint', async (req, res) => {
+app.post('/api/police/login', async (req, res) => {
   try {
-    console.log('📋 Complaint request:', req.body);
-
-    const { title, description, category, priority, location, user_id, user_name, user_contact } = req.body;
-
-    // Validation
-    if (!title || !description || !category || !user_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Title, description, category, and user ID are required'
-      });
-    }
-
-    // Try MongoDB
+    const { email, password } = req.body;
+    
+    // Connect to MongoDB
     const database = await connectToMongoDB();
-    
-    if (database) {
-      try {
-        const complaints = database.collection('complaints');
-        
-        const newComplaint = {
-          title: title.trim(),
-          description: description.trim(),
-          category: category.trim(),
-          priority: priority || 'medium',
-          location: location || '',
-          user_id,
-          user_name: user_name || 'Anonymous',
-          user_contact: user_contact || '',
-          status: 'pending',
-          created_at: new Date(),
-          updated_at: new Date()
-        };
-
-        const result = await complaints.insertOne(newComplaint);
-        
-        console.log('✅ Complaint filed successfully:', result.insertedId.toString());
-        
-        return res.status(201).json({
-          success: true,
-          message: 'Complaint filed successfully',
-          complaint_id: result.insertedId.toString(),
-          complaint: {
-            id: result.insertedId.toString(),
-            ...newComplaint
-          }
-        });
-
-      } catch (mongoError) {
-        console.error('❌ MongoDB complaint failed:', mongoError.message);
-        // Fall through to demo mode
-      }
+    if (!database) {
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
     }
-
-    // Demo mode fallback
-    const demoComplaintId = 'demo_' + Date.now();
-    console.log('🔄 Using demo mode for complaint');
     
-    return res.status(201).json({
+    const policeCollection = database.collection('police');
+    const police = await policeCollection.findOne({ email });
+    
+    if (police && await bcrypt.compare(password, police.password)) {
+      const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+      res.json({
+        success: true,
+        data: { police: { id: police._id, fullName: police.fullName, email: police.email, role: police.role }, token }
+      });
+    } else {
+      res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+  } catch (error) {
+    console.error('Police login error:', error);
+    res.status(500).json({ success: false, message: 'Login failed' });
+  }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  console.log('📝 Registration Request Debug:');
+  console.log('- Request body:', req.body);
+  console.log('- Request timestamp:', new Date().toISOString());
+  
+  try {
+    const { fullName, email, mobile, address, password } = req.body;
+    console.log('- Extracted data:', { fullName, email, mobile, address, hasPassword: !!password, passwordLength: password ? password.length : 0 });
+    
+    if (!fullName || !email || !password) {
+      console.log('- Missing required fields');
+      return res.status(400).json({ success: false, message: 'Full name, email, and password are required' });
+    }
+    
+    // Connect to MongoDB
+    console.log('- Connecting to MongoDB for registration...');
+    const database = await connectToMongoDB();
+    if (!database) {
+      console.error('❌ Database connection failed during registration');
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
+    }
+    console.log('✅ MongoDB connected for registration');
+    
+    const usersCollection = database.collection('users');
+    
+    // Check if user already exists
+    console.log('- Checking if user already exists:', email);
+    const existingUser = await usersCollection.findOne({ email });
+    console.log('- Existing user found:', !!existingUser);
+    
+    if (existingUser) {
+      console.log('- ❌ User already exists with this email');
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    }
+    
+    // Hash password
+    console.log('- Starting password hashing...');
+    const startTime = Date.now();
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const endTime = Date.now();
+    console.log('- Password hashing completed in:', (endTime - startTime), 'ms');
+    console.log('- Hashed password length:', hashedPassword.length);
+    
+    // Create new user
+    const newUser = {
+      fullName,
+      email,
+      mobile,
+      address,
+      password: hashedPassword,
+      role: 'user',
+      isActive: true,
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log('- Inserting new user into MongoDB...');
+    const result = await usersCollection.insertOne(newUser);
+    console.log('- ✅ User inserted successfully with ID:', result.insertedId);
+    
+    res.status(201).json({
       success: true,
-      message: 'Complaint filed successfully (Demo Mode)',
-      complaint_id: demoComplaintId,
-      complaint: {
-        id: demoComplaintId,
+      message: 'Registration successful',
+      data: {
+        user: {
+          id: result.insertedId,
+          fullName: newUser.fullName,
+          email: newUser.email,
+          role: newUser.role
+        }
+      }
+    });
+    console.log('✅ Registration completed successfully');
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    console.error('- Error stack:', error.stack);
+    res.status(500).json({ success: false, message: 'Registration failed due to server error' });
+  }
+});
+
+app.get('/api/complaints', authenticateUser, async (req, res) => {
+  try {
+    const database = await connectToMongoDB();
+    if (!database) {
+      // Fallback to file
+      const data = loadFromFile();
+      const userComplaints = data.complaints.filter(c => c.userId === (req.user?.id || 'user_demo_1'));
+      return res.json({ success: true, data: { complaints: userComplaints, total: userComplaints.length } });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    const complaints = await complaintsCollection.find({ userId: req.user?.id || 'user_demo_1' }).toArray();
+    res.json({ success: true, data: { complaints, total: complaints.length } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to get complaints' });
+  }
+});
+
+app.get('/api/complaints/all', async (req, res) => {
+  try {
+    const database = await connectToMongoDB();
+    if (!database) {
+      // Fallback to file
+      const data = loadFromFile();
+      return res.json({ success: true, data: { complaints: data.complaints, total: data.complaints.length } });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    const complaints = await complaintsCollection.find({}).toArray();
+    res.json({ success: true, data: { complaints, total: complaints.length } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to get all complaints' });
+  }
+});
+
+app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async (req, res) => {
+  try {
+    const { title, description, category, incidentDate, incidentLocation, userLocation, priority = 'medium' } = req.body;
+    
+    // Handle uploaded files
+    const uploadedFiles = req.files ? req.files.map(file => ({
+      filename: file.filename,
+      originalname: file.originalname,
+      path: file.path,
+      size: file.size,
+      mimetype: file.mimetype
+    })) : [];
+    
+    const database = await connectToMongoDB();
+    if (!database) {
+      // Fallback to file
+      const data = loadFromFile();
+      
+      const newComplaint = {
+        _id: `comp_${Date.now()}`,
+        complaintId: `COMP-${new Date().getFullYear()}-${String(data.complaints.length + 1).padStart(3, '0')}`,
         title,
         description,
         category,
-        priority: priority || 'medium',
-        location: location || '',
-        user_id,
-        user_name: user_name || 'Anonymous',
-        user_contact: user_contact || '',
+        priority,
         status: 'pending',
-        created_at: new Date()
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Complaint error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error while filing complaint: ' + error.message
-    });
-  }
-});
-
-// Get complaints endpoint
-app.get('/api/get-complaints', async (req, res) => {
-  try {
-    const { user_id } = req.query;
-    
-    if (!user_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'User ID is required'
+        incidentDate: new Date(incidentDate),
+        incidentLocation,
+        userLocation: JSON.parse(userLocation),
+        userId: req.user?.id || 'user_demo_1',
+        evidence: uploadedFiles,
+        createdAt: new Date().toISOString()
+      };
+      
+      data.complaints.unshift(newComplaint);
+      saveToFile(data);
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Complaint filed successfully',
+        data: { complaint: { id: newComplaint._id, complaintId: newComplaint.complaintId, title: newComplaint.title, status: newComplaint.status } }
       });
     }
-
-    // Try MongoDB
-    const database = await connectToMongoDB();
     
-    if (database) {
-      try {
-        const complaints = database.collection('complaints');
-        const userComplaints = await complaints.find({ user_id }).sort({ created_at: -1 }).toArray();
-        
-        console.log(`✅ Found ${userComplaints.length} complaints for user:`, user_id);
-        
-        return res.json({
-          success: true,
-          message: 'Complaints retrieved successfully',
-          complaints: userComplaints.map(complaint => ({
-            id: complaint._id.toString(),
-            title: complaint.title,
-            description: complaint.description,
-            category: complaint.category,
-            priority: complaint.priority,
-            location: complaint.location,
-            status: complaint.status,
-            created_at: complaint.created_at
-          }))
-        });
-
-      } catch (mongoError) {
-        console.error('❌ MongoDB get complaints failed:', mongoError.message);
-        // Fall through to demo mode
-      }
-    }
-
-    // Demo mode fallback
-    console.log('🔄 Using demo mode for complaints');
-    const demoComplaints = [
-      {
-        id: 'demo_1',
-        title: 'Demo Complaint 1',
-        description: 'This is a sample complaint for demonstration',
-        category: 'Infrastructure',
-        priority: 'medium',
-        location: 'Demo Location',
-        status: 'pending',
-        created_at: new Date()
-      },
-      {
-        id: 'demo_2',
-        title: 'Demo Complaint 2',
-        description: 'Another sample complaint for testing',
-        category: 'Security',
-        priority: 'high',
-        location: 'Demo Location 2',
-        status: 'resolved',
-        created_at: new Date(Date.now() - 86400000) // Yesterday
-      }
-    ];
+    const complaintsCollection = database.collection('complaints');
+    const newComplaint = {
+      title,
+      description,
+      category,
+      priority,
+      status: 'pending',
+      incidentDate: new Date(incidentDate),
+      incidentLocation,
+      userLocation: JSON.parse(userLocation),
+      userId: req.user?.id || 'user_demo_1',
+      evidence: uploadedFiles,
+      createdAt: new Date().toISOString()
+    };
     
-    return res.json({
+    const result = await complaintsCollection.insertOne(newComplaint);
+    const complaintId = `COMP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+    
+    res.status(201).json({
       success: true,
-      message: 'Complaints retrieved successfully (Demo Mode)',
-      complaints: demoComplaints
+      message: 'Complaint filed successfully',
+      data: { 
+        complaint: { 
+          id: result.insertedId, 
+          complaintId, 
+          title: newComplaint.title, 
+          status: newComplaint.status 
+        } 
+      }
     });
-
   } catch (error) {
-    console.error('❌ Get complaints error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error while retrieving complaints: ' + error.message
-    });
+    console.error('Error filing complaint:', error);
+    res.status(500).json({ success: false, message: 'Failed to file complaint' });
   }
 });
 
-// Serve frontend for all other routes (must be last)
-app.get('*', (req, res) => {
-  res.sendFile(process.cwd() + '/dist/index.html');
-});
-
-// Start server on all network interfaces
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('\n🚀 === SERVER STARTED === 🚀');
-  console.log(`📡 Server running on all interfaces (0.0.0.0:${PORT})`);
-  console.log(`🌐 Local access: http://localhost:${PORT}`);
-  console.log(`🏠 LAN access: http://<YOUR_LOCAL_IP>:${PORT}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`📝 Registration: http://localhost:${PORT}/api/registration`);
-  console.log(`🔐 Login: http://localhost:${PORT}/api/login`);
-  console.log(`📋 File Complaint: http://localhost:${PORT}/api/file-complaint`);
-  console.log(`📱 Demo Login: demo@gmail.com / 1234`);
-  console.log('========================\n');
-});
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🔄 Shutting down gracefully...');
-  if (client) {
-    await client.close();
-    console.log('✅ MongoDB connection closed');
-  }
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n🔄 Shutting down gracefully...');
-  if (client) {
-    await client.close();
-    console.log('✅ MongoDB connection closed');
-  }
-  process.exit(0);
+  initializeDemoData();
+  console.log(`🌐 Server running on http://0.0.0.0:${PORT}`);
+  console.log(`📱 Mobile access: http://<your-local-ip>:${PORT}`);
 });

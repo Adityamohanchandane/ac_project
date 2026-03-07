@@ -18,8 +18,9 @@ export default defineConfig({
     assetsInlineLimit: 4096
   },
   server: {
+    host: "0.0.0.0",
     port: 3002,
-    host: true
+    strictPort: true
   },
   define: {
     'process.env.NODE_ENV': '"production"'
