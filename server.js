@@ -12,7 +12,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://adityachandane71_db_user:adityamch2007@observex.fcerr8w.mongodb.net/observx?retryWrites=true&w=majority';
+
+// Proper MongoDB URI with encoded password
+const getDefaultMongoURI = () => {
+  const username = 'adityachandane71_db_user';
+  const password = 'adityamch$2007'; // Original password with $ character
+  const encodedPassword = encodeURIComponent(password);
+  return `mongodb+srv://${username}:${encodedPassword}@observex.fcerr8w.mongodb.net/observx?retryWrites=true&w=majority`;
+};
+
+const MONGODB_URI = process.env.MONGODB_URI || getDefaultMongoURI();
 const DATA_FILE = join(process.cwd(), 'data.json');
 
 // Multer configuration for file uploads
