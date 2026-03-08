@@ -43,7 +43,7 @@ let isLoading = false;
 
 // Demo mode state
 let demoMode = {
-  enabled: false, // Disable demo mode for production
+  enabled: true, // Enable demo mode temporarily for testing
   demoUser: {
     email: 'adii123@gmail.com',
     password: 'adii123',
@@ -57,7 +57,32 @@ let demoMode = {
     role: 'police',
     badgeNumber: 'POL001'
   },
-  demoComplaints: []
+  demoComplaints: [
+    {
+      _id: '69ac022824867e72d1588a62',
+      complaintId: 'COMP001',
+      title: 'Noise Complaint',
+      description: 'Loud music from neighboring apartment after 10 PM',
+      category: 'Noise',
+      status: 'pending',
+      priority: 'medium',
+      incidentLocation: 'Apartment 4B, Building A',
+      createdAt: new Date('2024-01-15'),
+      evidence: []
+    },
+    {
+      _id: '69ac022824867e72d1588a63',
+      complaintId: 'COMP002',
+      title: 'Theft Report',
+      description: 'Bicycle stolen from parking area',
+      category: 'Theft',
+      status: 'under-investigation',
+      priority: 'high',
+      incidentLocation: 'Parking Lot B',
+      createdAt: new Date('2024-01-16'),
+      evidence: []
+    }
+  ]
 };
 
 // Add loading state management
@@ -235,6 +260,39 @@ const checkAuth = async () => {
 const login = async (email, password, role = 'user') => {
   try {
     setLoading(true);
+    
+    // Check if demo mode is enabled and credentials match
+    if (demoMode.enabled) {
+      console.log('🎭 Demo mode enabled, checking credentials...');
+      
+      if (role === 'user' && email === demoMode.demoUser.email && password === demoMode.demoUser.password) {
+        console.log('✅ Demo user login successful');
+        currentUser = demoMode.demoUser;
+        currentUserRole = demoMode.demoUser.role;
+        localStorage.setItem('authToken', 'demo-token-user');
+        updateAuthMenu();
+        
+        window.location.hash = '#/user-dashboard';
+        showNotification('success', 'Demo login successful!');
+        return true;
+      }
+      
+      if (role === 'police' && email === demoMode.demoPolice.email && password === demoMode.demoPolice.password) {
+        console.log('✅ Demo police login successful');
+        currentUser = demoMode.demoPolice;
+        currentUserRole = 'police';
+        localStorage.setItem('authToken', 'demo-token-police');
+        updateAuthMenu();
+        
+        window.location.hash = '#/police-dashboard';
+        showNotification('success', 'Demo login successful!');
+        return true;
+      }
+      
+      console.log('❌ Demo credentials not matched');
+    }
+    
+    // Normal API login
     const endpoint = role === 'police' ? '/api/police/login' : '/api/auth/login';
     const data = await apiCall(endpoint, {
       method: 'POST',
@@ -2025,6 +2083,12 @@ function renderComplaintsTable(complaints) {
 // Load real complaints data from API
 async function loadMyComplaintsData() {
   try {
+    // Check if demo mode is enabled
+    if (demoMode.enabled && currentUserRole === 'user') {
+      console.log('🎭 Demo mode: Returning demo complaints');
+      return demoMode.demoComplaints;
+    }
+    
     const token = localStorage.getItem('authToken');
     if (!token) {
       console.log('❌ No auth token found');
@@ -2633,6 +2697,27 @@ function attachLoginListeners() {
 async function loadComplaintDetail(complaintId) {
   try {
     console.log('🔍 loadComplaintDetail called with ID:', complaintId);
+    
+    // Check if demo mode is enabled
+    if (demoMode.enabled && currentUserRole === 'user') {
+      console.log('🎭 Demo mode: Using demo complaints');
+      const complaint = demoMode.demoComplaints.find(c => c._id === complaintId || c.complaintId === complaintId);
+      
+      if (complaint) {
+        console.log('✅ Demo complaint found:', complaint);
+        displayComplaintDetail(complaint);
+        return;
+      } else {
+        console.log('❌ Demo complaint not found');
+        document.getElementById('complaintDetailContent').innerHTML = `
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Complaint not found
+          </div>
+        `;
+        return;
+      }
+    }
     
     const token = localStorage.getItem('authToken');
     console.log('🔍 Token check:', {
