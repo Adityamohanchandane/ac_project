@@ -1193,7 +1193,7 @@ function renderContact() {
           <div class="card mb-3">
             <div class="card-body">
               <h5 class="card-title"><i class="bi bi-telephone"></i> Helpline</h5>
-              <p class="card-text">1800-200-SECURE (7323873)</p>
+              <p class="card-text">112</p>
               <small class="text-muted">Available 24/7</small>
             </div>
           </div>
@@ -1201,7 +1201,7 @@ function renderContact() {
           <div class="card mb-3">
             <div class="card-body">
               <h5 class="card-title"><i class="bi bi-envelope"></i> Email</h5>
-              <p class="card-text">support@observx.gov.in</p>
+              <p class="card-text">aditya71@observx.gov.in</p>
             </div>
           </div>
 
@@ -1779,15 +1779,239 @@ function renderPoliceComplaintsTable(complaints) {
       <td>${complaint.userId || 'Unknown'}</td>
       <td>${new Date(complaint.createdAt).toLocaleDateString()}</td>
       <td>
-        <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint._id}')">
+        <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint._id}')" title="View Details">
           <i class="bi bi-eye"></i> View
         </button>
-        <button class="btn btn-sm btn-outline-success" onclick="updatePoliceComplaint('${complaint._id}', '${complaint.status}')">
+        <button class="btn btn-sm btn-outline-success" onclick="updatePoliceComplaint('${complaint._id}', '${complaint.status}')" title="Update Status">
           <i class="bi bi-pencil"></i> Update
         </button>
+        ${complaint.feedback ? `
+          <button class="btn btn-sm btn-outline-info" onclick="viewFeedback('${complaint._id}')" title="View Feedback">
+            <i class="bi bi-star"></i> Feedback
+          </button>
+        ` : `
+          <button class="btn btn-sm btn-outline-secondary" onclick="viewFeedback('${complaint._id}')" title="View Feedback (Test)">
+            <i class="bi bi-star"></i> Feedback
+          </button>
+        `}
       </td>
     </tr>
   `).join('');
+}
+
+// Fill Feedback (User function)
+function fillFeedback(complaintId) {
+  console.log(`🌟 Fill Feedback Called with ID: ${complaintId}`);
+  console.log('- Current User Role:', currentUserRole);
+  console.log('- Checking if feedback button should show...');
+  
+  try {
+    // Create feedback modal
+    const modal = document.createElement('div');
+    modal.innerHTML = `
+      <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Provide Feedback</h5>
+              <button type="button" class="btn-close" onclick="closeFeedbackModal()"></button>
+            </div>
+            <div class="modal-body">
+              <form id="feedbackForm">
+                <div class="mb-4">
+                  <label class="form-label">⭐ Rate Your Experience ⭐</label>
+                  <div class="d-flex justify-content-center gap-2" style="max-width: 500px; margin: 0 auto;">
+                    <input type="radio" class="btn-check" name="rating" id="rating1" value="1">
+                    <label class="btn btn-outline-warning star-single" for="rating1">★</label>
+                    
+                    <input type="radio" class="btn-check" name="rating" id="rating2" value="2">
+                    <label class="btn btn-outline-warning star-single" for="rating2">★</label>
+                    
+                    <input type="radio" class="btn-check" name="rating" id="rating3" value="3" checked>
+                    <label class="btn btn-outline-warning star-single" for="rating3">★</label>
+                    
+                    <input type="radio" class="btn-check" name="rating" id="rating4" value="4">
+                    <label class="btn btn-outline-warning star-single" for="rating4">★</label>
+                    
+                    <input type="radio" class="btn-check" name="rating" id="rating5" value="5">
+                    <label class="btn btn-outline-warning star-single" for="rating5">★</label>
+                  </div>
+                  <small class="text-muted d-block text-center mt-2">Click to select your rating (1-5 stars)</small>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Feedback Comments</label>
+                  <textarea class="form-control" id="feedbackComments" rows="4" placeholder="Please share your experience with the complaint resolution process..." required></textarea>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Would you recommend this service?</label>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="recommend" id="recommendYes" value="yes" checked>
+                    <label class="form-check-label" for="recommendYes">Yes</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="recommend" id="recommendNo" value="no">
+                    <label class="form-check-label" for="recommendNo">No</label>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
+              <button type="button" class="btn btn-primary" onclick="submitFeedback('${complaintId}')">Submit Feedback</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    window.currentComplaintId = complaintId;
+    
+  } catch (error) {
+    console.error('Error opening feedback modal:', error);
+    showNotification('error', 'Failed to open feedback form');
+  }
+}
+
+// Close feedback modal
+function closeFeedbackModal() {
+  const modal = document.querySelector('.modal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// Submit feedback
+async function submitFeedback(complaintId) {
+  try {
+    const rating = document.querySelector('input[name="rating"]:checked')?.value;
+    const comments = document.getElementById('feedbackComments').value;
+    const recommend = document.querySelector('input[name="recommend"]:checked')?.value;
+    
+    if (!rating || !comments) {
+      showNotification('error', 'Please provide rating and comments');
+      return;
+    }
+    
+    setLoading(true);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${BASE_URL}/api/complaints/${complaintId}/feedback`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        rating: parseInt(rating),
+        comments: comments,
+        recommend: recommend === 'yes',
+        submittedAt: new Date().toISOString()
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showNotification('success', 'Feedback submitted successfully!');
+      closeFeedbackModal();
+      // Reload complaints data
+      setTimeout(() => loadMyComplaintsDataAndRender(), 500);
+    } else {
+      showNotification('error', result.message || 'Failed to submit feedback');
+    }
+    
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    showNotification('error', 'Error submitting feedback');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// View Feedback (Police function)
+function viewFeedback(complaintId) {
+  try {
+    // Get complaint details to show feedback
+    const token = localStorage.getItem('authToken');
+    
+    fetch(`${BASE_URL}/api/complaints/all`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.success && result.data && result.data.complaints) {
+        const complaint = result.data.complaints.find(c => c._id === complaintId);
+        
+        if (complaint && complaint.feedback) {
+          showFeedbackModal(complaint);
+        } else {
+          showNotification('info', 'No feedback available for this complaint');
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error loading feedback:', error);
+      showNotification('error', 'Failed to load feedback');
+    });
+    
+  } catch (error) {
+    console.error('Error viewing feedback:', error);
+    showNotification('error', 'Failed to view feedback');
+  }
+}
+
+// Show feedback modal (Police)
+function showFeedbackModal(complaint) {
+  const feedback = complaint.feedback;
+  const stars = '⭐'.repeat(feedback.rating);
+  
+  const modal = document.createElement('div');
+  modal.innerHTML = `
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Complaint Feedback</h5>
+            <button type="button" class="btn-close" onclick="closeFeedbackModal()"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <h6>Complaint Details</h6>
+              <p><strong>ID:</strong> ${complaint.complaintId || complaint._id}</p>
+              <p><strong>Title:</strong> ${complaint.title}</p>
+              <p><strong>Status:</strong> <span class="badge bg-success">${complaint.status}</span></p>
+            </div>
+            <div class="mb-3">
+              <h6>User Feedback</h6>
+              <div class="mb-2">
+                <strong>Rating:</strong> ${stars} (${feedback.rating}/5)
+              </div>
+              <div class="mb-2">
+                <strong>Comments:</strong>
+                <p class="mt-1">${feedback.comments}</p>
+              </div>
+              <div class="mb-2">
+                <strong>Would Recommend:</strong> ${feedback.recommend ? '✅ Yes' : '❌ No'}
+              </div>
+              <div class="mb-2">
+                <strong>Submitted:</strong> ${new Date(feedback.submittedAt).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeFeedbackModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
 }
 
 // Update complaint status (Police function)
@@ -2058,6 +2282,15 @@ function renderComplaintsTable(complaints) {
                   <button class="btn btn-outline-secondary btn-sm" onclick="downloadComplaint('${complaint._id}')" title="Download">
                     <i class="bi bi-download"></i>
                   </button>
+                  ${complaint.status === 'resolved' ? `
+                    <button class="btn btn-outline-success btn-sm" onclick="fillFeedback('${complaint._id}')" title="Give Feedback">
+                      <i class="bi bi-star"></i> Feedback
+                    </button>
+                  ` : `
+                    <button class="btn btn-outline-success btn-sm" onclick="fillFeedback('${complaint._id}')" title="Give Feedback (Test)">
+                      <i class="bi bi-star"></i> Feedback
+                    </button>
+                  `}
                   ${complaint.status === 'pending' ? `
                     <button class="btn btn-outline-warning btn-sm" onclick="editComplaint('${complaint._id}')" title="Edit">
                       <i class="bi bi-pencil"></i>
