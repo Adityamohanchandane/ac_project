@@ -1,5 +1,5 @@
 :root {
-  --primary-dark: #1a3a7a;
+  --primary-dark: #cfed0c;
   --primary: #2563eb;
   --primary-light: #60a5fa;
   --secondary: #1e40af;
@@ -183,6 +183,18 @@ main {
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
 }
+
+/* Police Officer text color in navbar */
+.dropdown .d-none.d-md-inline {
+  color: #fafe0e !important; /* Blue color - change this to whatever color you want */
+  font-weight: 600;
+}
+
+/* Alternative colors you can use */
+/* .dropdown .d-none.d-md-inline { color: #dc2626 !important; } */ /* Red */
+/* .dropdown .d-none.d-md-inline { color: #16a34a !important; } */ /* Green */
+/* .dropdown .d-none.d-md-inline { color: #9333ea !important; } */ /* Purple */
+/* .dropdown .d-none.d-md-inline { color: #ea580c !important; } */ /* Orange */
 
 .nav-link::after {
   content: '';

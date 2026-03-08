@@ -2699,8 +2699,10 @@ async function loadComplaintDetail(complaintId) {
     console.log('🔍 loadComplaintDetail called with ID:', complaintId);
     
     // Check if demo mode is enabled
-    if (demoMode.enabled && currentUserRole === 'user') {
+    if (demoMode.enabled) {
       console.log('🎭 Demo mode: Using demo complaints');
+      console.log('🎭 Current user role:', currentUserRole);
+      
       const complaint = demoMode.demoComplaints.find(c => c._id === complaintId || c.complaintId === complaintId);
       
       if (complaint) {
@@ -2709,10 +2711,12 @@ async function loadComplaintDetail(complaintId) {
         return;
       } else {
         console.log('❌ Demo complaint not found');
+        console.log('🔍 Available demo complaints:', demoMode.demoComplaints);
         document.getElementById('complaintDetailContent').innerHTML = `
           <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
             Complaint not found
+            <br><small>Looking for ID: ${complaintId}</small>
           </div>
         `;
         return;
@@ -3022,6 +3026,16 @@ function renderViewComplaint() {
     return `<div class="container mt-5"><div class="alert alert-danger">Complaint ID not found</div></div>`;
   }
 
+  // For demo mode, directly show complaint details without loading
+  if (demoMode.enabled) {
+    const complaint = demoMode.demoComplaints.find(c => c._id === complaintId || c.complaintId === complaintId);
+    
+    if (complaint) {
+      console.log('🎭 Directly rendering demo complaint:', complaint);
+      return renderComplaintDetailDirect(complaint);
+    }
+  }
+
   return `
     <div class="container mt-4">
       <div class="row">
@@ -3082,6 +3096,185 @@ function renderViewComplaint() {
       // Load complaint details when page loads
       setTimeout(() => loadComplaintDetail('${complaintId}'), 100);
     </script>
+  `;
+}
+
+// Direct render complaint details without loading
+function renderComplaintDetailDirect(complaint) {
+  const statusColor = getStatusColor(complaint.status);
+  const priorityColor = getPriorityColor(complaint.priority);
+  
+  return `
+    <div class="container mt-4">
+      <div class="row">
+        <div class="col-lg-8 mx-auto">
+          <div class="complaint-detail-card">
+            <div class="card-header">
+              <h3><i class="bi bi-file-text me-2"></i>Complaint Details</h3>
+              <div class="back-btn">
+                <a href="#/my-complaints" class="btn btn-outline-secondary">
+                  <i class="bi bi-arrow-left"></i> Back to My Complaints
+                </a>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="complaint-detail-content">
+                <!-- Status and Priority -->
+                <div class="row mb-4">
+                  <div class="col-md-6">
+                    <div class="detail-item">
+                      <label class="detail-label">Status</label>
+                      <span class="badge bg-${statusColor} fs-6">${complaint.status.replace(/_/g, ' ')}</span>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="detail-item">
+                      <label class="detail-label">Priority</label>
+                      <span class="badge bg-${priorityColor} fs-6">${complaint.priority}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Basic Information -->
+                <div class="detail-section">
+                  <h5><i class="bi bi-info-circle me-2"></i>Basic Information</h5>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="detail-item">
+                        <label class="detail-label">Complaint ID</label>
+                        <p class="detail-value">${complaint.complaintId || complaint._id}</p>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="detail-item">
+                        <label class="detail-label">Date Filed</label>
+                        <p class="detail-value">${new Date(complaint.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-12">
+                      <div class="detail-item">
+                        <label class="detail-label">Title</label>
+                        <p class="detail-value">${complaint.title}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-12">
+                      <div class="detail-item">
+                        <label class="detail-label">Description</label>
+                        <p class="detail-value">${complaint.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Location Information -->
+                <div class="detail-section">
+                  <h5><i class="bi bi-geo-alt me-2"></i>Location Information</h5>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="detail-item">
+                        <label class="detail-label">Incident Location</label>
+                        <p class="detail-value">${complaint.incidentLocation || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="detail-item">
+                        <label class="detail-label">Category</label>
+                        <p class="detail-value">${complaint.category}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="detail-actions mt-4">
+                  <button class="btn btn-primary" onclick="downloadComplaint('${complaint._id}')">
+                    <i class="bi bi-download me-2"></i>Download Full Report
+                  </button>
+                  ${complaint.status === 'pending' ? `
+                    <button class="btn btn-warning" onclick="editComplaint('${complaint._id}')">
+                      <i class="bi bi-pencil me-2"></i>Edit Complaint
+                    </button>
+                  ` : ''}
+                  <a href="#/my-complaints" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to List
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .complaint-detail-card {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      
+      .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .card-header h3 {
+        margin: 0;
+      }
+      
+      .back-btn a {
+        color: white;
+        border-color: white;
+      }
+      
+      .back-btn a:hover {
+        background: rgba(255,255,255,0.1);
+      }
+      
+      .detail-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+      }
+      
+      .detail-section h5 {
+        color: #495057;
+        margin-bottom: 1rem;
+        font-weight: 600;
+      }
+      
+      .detail-item {
+        margin-bottom: 1rem;
+      }
+      
+      .detail-label {
+        font-weight: 600;
+        color: #6c757d;
+        display: block;
+        margin-bottom: 0.5rem;
+      }
+      
+      .detail-value {
+        margin: 0;
+        color: #212529;
+        line-height: 1.5;
+      }
+      
+      .detail-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+    </style>
   `;
 }
 
