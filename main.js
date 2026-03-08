@@ -2632,7 +2632,15 @@ function attachLoginListeners() {
 // Load complaint details from API
 async function loadComplaintDetail(complaintId) {
   try {
+    console.log('🔍 loadComplaintDetail called with ID:', complaintId);
+    
     const token = localStorage.getItem('authToken');
+    console.log('🔍 Token check:', {
+      exists: !!token,
+      length: token ? token.length : 0,
+      startsWithBearer: token ? token.startsWith('Bearer ') : false
+    });
+    
     if (!token) {
       document.getElementById('complaintDetailContent').innerHTML = `
         <div class="alert alert-danger">
@@ -2645,7 +2653,8 @@ async function loadComplaintDetail(complaintId) {
 
     // Use different endpoint for police vs user
     const endpoint = currentUserRole === 'police' ? '/api/complaints/all' : '/api/complaints/user';
-    console.log(`🔍 Loading complaint details from: ${endpoint}`);
+    console.log(`🔍 Loading complaint details from: ${BASE_URL}${endpoint}`);
+    console.log('🔍 Current user role:', currentUserRole);
     
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'GET',
@@ -2655,11 +2664,23 @@ async function loadComplaintDetail(complaintId) {
       }
     });
 
+    console.log('🔍 API Response status:', response.status);
+    console.log('🔍 API Response ok:', response.ok);
+
     const result = await response.json();
     console.log('📋 Complaint details response:', result);
     
     if (result.success && result.data && result.data.complaints) {
+      console.log('🔍 Available complaints:', result.data.complaints.map(c => ({ 
+        _id: c._id, 
+        complaintId: c.complaintId, 
+        title: c.title 
+      })));
+      
       const complaint = result.data.complaints.find(c => c._id === complaintId || c.complaintId === complaintId);
+      
+      console.log('🔍 Looking for complaint with ID:', complaintId);
+      console.log('🔍 Found complaint:', complaint);
       
       if (complaint) {
         console.log('✅ Complaint found:', complaint);
@@ -2675,19 +2696,22 @@ async function loadComplaintDetail(complaintId) {
       }
     } else {
       console.log('❌ Failed to load complaint details:', result.message);
+      console.log('❌ Full result object:', result);
       document.getElementById('complaintDetailContent').innerHTML = `
         <div class="alert alert-danger">
           <i class="bi bi-exclamation-triangle me-2"></i>
-          Failed to load complaint details
+          Failed to load complaint details: ${result.message || 'Unknown error'}
         </div>
       `;
     }
   } catch (error) {
     console.error('❌ Error loading complaint detail:', error);
+    console.error('❌ Error stack:', error.stack);
     document.getElementById('complaintDetailContent').innerHTML = `
       <div class="alert alert-danger">
         <i class="bi bi-exclamation-triangle me-2"></i>
         Error loading complaint details. Please try again.
+        <br><small>Details: ${error.message}</small>
       </div>
     `;
   }
@@ -2695,8 +2719,12 @@ async function loadComplaintDetail(complaintId) {
 
 // Display complaint details in the UI
 function displayComplaintDetail(complaint) {
+  console.log('🎨 displayComplaintDetail called with:', complaint);
+  
   const statusColor = getStatusColor(complaint.status);
   const priorityColor = getPriorityColor(complaint.priority);
+  
+  console.log('🎨 Status color:', statusColor, 'Priority color:', priorityColor);
   
   const detailHTML = `
     <div class="complaint-detail-content">
@@ -2858,7 +2886,14 @@ function displayComplaintDetail(complaint) {
     </style>
   `;
   
-  document.getElementById('complaintDetailContent').innerHTML = detailHTML;
+  console.log('🎨 Setting HTML to complaintDetailContent');
+  const element = document.getElementById('complaintDetailContent');
+  if (element) {
+    element.innerHTML = detailHTML;
+    console.log('✅ HTML set successfully');
+  } else {
+    console.error('❌ complaintDetailContent element not found!');
+  }
 }
 
 // Download evidence file
