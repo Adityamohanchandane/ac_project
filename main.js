@@ -81,6 +81,18 @@ let demoMode = {
       incidentLocation: 'Parking Lot B',
       createdAt: new Date('2024-01-16'),
       evidence: []
+    },
+    {
+      _id: '69ad3c490f306cd39e5df71c',
+      complaintId: 'COMP003',
+      title: 'Cyber Harassment',
+      description: 'Receiving threatening messages on social media',
+      category: 'cyber-crime',
+      status: 'pending',
+      priority: 'high',
+      incidentLocation: 'Online - Social Media Platform',
+      createdAt: new Date('2024-01-17'),
+      evidence: []
     }
   ]
 };
