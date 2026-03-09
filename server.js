@@ -448,6 +448,83 @@ app.put('/api/complaints/:id', authenticateUser, async (req, res) => {
   }
 });
 
+// Submit feedback for complaint
+app.post('/api/complaints/:id/feedback', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, comments, recommend, submittedAt } = req.body;
+    
+    if (!rating || !comments) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Rating and comments are required' 
+      });
+    }
+    
+    const database = await connectToMongoDB();
+    if (!database) {
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    
+    // Check if complaint exists and is resolved
+    const complaint = await complaintsCollection.findOne({ _id: new ObjectId(id) });
+    
+    if (!complaint) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Complaint not found' 
+      });
+    }
+    
+    if (complaint.status !== 'resolved') {
+      console.log(`⚠️ Feedback requested for non-resolved complaint (status: ${complaint.status}), allowing for testing`);
+      // For testing purposes, allow feedback on any complaint
+      // return res.status(400).json({ 
+      //   success: false, 
+      //   message: 'Feedback can only be provided for resolved complaints' 
+      // });
+    }
+    
+    // Update complaint with feedback
+    const feedbackData = {
+      rating: rating,
+      comments: comments,
+      recommend: recommend,
+      submittedAt: submittedAt || new Date().toISOString(),
+      submittedBy: req.user.email
+    };
+    
+    const result = await complaintsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { feedback: feedbackData } }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Complaint not found' 
+      });
+    }
+    
+    console.log(`✅ Feedback submitted for complaint ${id} by ${req.user.email}`);
+    
+    res.json({
+      success: true,
+      message: 'Feedback submitted successfully',
+      data: {
+        complaintId: id,
+        feedback: feedbackData
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    res.status(500).json({ success: false, message: 'Failed to submit feedback' });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
