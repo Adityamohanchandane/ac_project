@@ -163,6 +163,290 @@ const initNavbarScroll = () => {
   }
 }
 
+// Profile page helper functions
+function editProfile() {
+  const modal = document.createElement('div');
+  modal.innerHTML = `
+    <div class="modal fade" id="editProfileModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Profile</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editProfileForm">
+              <div class="mb-3">
+                <label class="form-label">Full Name</label>
+                <input type="text" class="form-control" id="editFullName" value="${currentUser.fullName}" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-control" id="editEmail" value="${currentUser.email}" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Mobile Number</label>
+                <input type="tel" class="form-control" id="editMobile" placeholder="Enter mobile number">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Address</label>
+                <textarea class="form-control" id="editAddress" rows="2" placeholder="Enter your address"></textarea>
+              </div>
+              <div id="editProfileAlert"></div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveProfileChanges()">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  const modalInstance = new bootstrap.Modal(document.getElementById('editProfileModal'));
+  modalInstance.show();
+  
+  // Remove modal from DOM after it's hidden
+  document.getElementById('editProfileModal').addEventListener('hidden.bs.modal', function() {
+    modal.remove();
+  });
+}
+
+function changePassword() {
+  const modal = document.createElement('div');
+  modal.innerHTML = `
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-key me-2"></i>Change Password</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="changePasswordForm">
+              <div class="mb-3">
+                <label class="form-label">Current Password</label>
+                <input type="password" class="form-control" id="currentPassword" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">New Password</label>
+                <input type="password" class="form-control" id="newPassword" required minlength="6">
+                <small class="text-muted">Password must be at least 6 characters long</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Confirm New Password</label>
+                <input type="password" class="form-control" id="confirmNewPassword" required>
+              </div>
+              <div id="changePasswordAlert"></div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="savePasswordChanges()">Change Password</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  const modalInstance = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+  modalInstance.show();
+  
+  // Remove modal from DOM after it's hidden
+  document.getElementById('changePasswordModal').addEventListener('hidden.bs.modal', function() {
+    modal.remove();
+  });
+}
+
+// Save profile changes
+async function saveProfileChanges() {
+  const fullName = document.getElementById('editFullName').value;
+  const email = document.getElementById('editEmail').value;
+  const mobile = document.getElementById('editMobile').value;
+  const address = document.getElementById('editAddress').value;
+  const alertDiv = document.getElementById('editProfileAlert');
+
+  // Validation
+  if (!fullName || !email) {
+    alertDiv.innerHTML = '<div class="alert alert-danger">Full name and email are required</div>';
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    alertDiv.innerHTML = '<div class="alert alert-danger">Please enter a valid email address</div>';
+    return;
+  }
+
+  try {
+    setLoading(true);
+    alertDiv.innerHTML = '';
+
+    // Update current user object for demo mode
+    if (demoMode.enabled) {
+      currentUser.fullName = fullName;
+      currentUser.email = email;
+      currentUser.mobile = mobile;
+      currentUser.address = address;
+      
+      // Update demo user data
+      if (currentUserRole === 'user') {
+        demoMode.demoUser.fullName = fullName;
+        demoMode.demoUser.email = email;
+        demoMode.demoUser.mobile = mobile;
+        demoMode.demoUser.address = address;
+      } else {
+        demoMode.demoPolice.fullName = fullName;
+        demoMode.demoPolice.email = email;
+        demoMode.demoPolice.mobile = mobile;
+        demoMode.demoPolice.address = address;
+      }
+      
+      updateAuthMenu();
+      showNotification('success', 'Profile updated successfully!');
+      
+      // Close modal and refresh profile page
+      const modal = bootstrap.Modal.getInstance(document.getElementById('editProfileModal'));
+      modal.hide();
+      
+      // Refresh profile page if currently on profile
+      if (window.location.hash === '#/my-profile') {
+        setTimeout(() => loadPage('my-profile'), 500);
+      }
+      return;
+    }
+
+    // API call for production
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${BASE_URL}/api/auth/profile`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ fullName, email, mobile, address })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      currentUser = result.data.user;
+      updateAuthMenu();
+      showNotification('success', 'Profile updated successfully!');
+      
+      // Close modal and refresh profile page
+      const modal = bootstrap.Modal.getInstance(document.getElementById('editProfileModal'));
+      modal.hide();
+      
+      if (window.location.hash === '#/my-profile') {
+        setTimeout(() => loadPage('my-profile'), 500);
+      }
+    } else {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${result.message || 'Failed to update profile'}</div>`;
+    }
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    alertDiv.innerHTML = '<div class="alert alert-danger">Error updating profile. Please try again.</div>';
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Save password changes
+async function savePasswordChanges() {
+  const currentPassword = document.getElementById('currentPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+  const alertDiv = document.getElementById('changePasswordAlert');
+
+  // Validation
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    alertDiv.innerHTML = '<div class="alert alert-danger">All password fields are required</div>';
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    alertDiv.innerHTML = '<div class="alert alert-danger">New password must be at least 6 characters long</div>';
+    return;
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    alertDiv.innerHTML = '<div class="alert alert-danger">New passwords do not match</div>';
+    return;
+  }
+
+  if (currentPassword === newPassword) {
+    alertDiv.innerHTML = '<div class="alert alert-danger">New password must be different from current password</div>';
+    return;
+  }
+
+  try {
+    setLoading(true);
+    alertDiv.innerHTML = '';
+
+    // Update password for demo mode
+    if (demoMode.enabled) {
+      // Verify current password (in demo mode, check against demo passwords)
+      const demoPassword = currentUserRole === 'police' ? demoMode.demoPolice.password : demoMode.demoUser.password;
+      
+      if (currentPassword !== demoPassword) {
+        alertDiv.innerHTML = '<div class="alert alert-danger">Current password is incorrect</div>';
+        return;
+      }
+      
+      // Update demo password
+      if (currentUserRole === 'user') {
+        demoMode.demoUser.password = newPassword;
+      } else {
+        demoMode.demoPolice.password = newPassword;
+      }
+      
+      showNotification('success', 'Password changed successfully!');
+      
+      // Close modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+      modal.hide();
+      return;
+    }
+
+    // API call for production
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${BASE_URL}/api/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      showNotification('success', 'Password changed successfully!');
+      
+      // Close modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+      modal.hide();
+    } else {
+      alertDiv.innerHTML = `<div class="alert alert-danger">${result.message || 'Failed to change password'}</div>`;
+    }
+  } catch (error) {
+    console.error('Error changing password:', error);
+    alertDiv.innerHTML = '<div class="alert alert-danger">Error changing password. Please try again.</div>';
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Email validation helper
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 // Initialize tooltips
 const initTooltips = () => {
   const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
@@ -874,6 +1158,7 @@ const pages = {
   'my-complaints': renderMyComplaints,
   'view-complaints': renderViewComplaints,
   'update-complaint': renderUpdateComplaint,
+  'my-profile': renderMyProfile,
 }
 
 window.addEventListener('hashchange', () => {
@@ -1585,6 +1870,112 @@ const loadDashboardData = async () => {
     `;
   }
 };
+
+function renderMyProfile() {
+  if (!currentUser) {
+    return `<div class="container mt-5"><div class="alert alert-danger">Please login to view your profile. <a href="#/user-login">Login here</a></div></div>`
+  }
+
+  return `
+    <div class="container mt-5">
+      <div class="row">
+        <div class="col-md-8 mx-auto">
+          <div class="card">
+            <div class="card-header bg-primary text-white">
+              <h3 class="mb-0"><i class="bi bi-person-circle me-2"></i>My Profile</h3>
+            </div>
+            <div class="card-body">
+              <div class="text-center mb-4">
+                <div class="profile-avatar">
+                  <i class="bi bi-person-circle" style="font-size: 80px; color: #0d6efd;"></i>
+                </div>
+                <h4 class="mt-3">${currentUser.fullName}</h4>
+                <span class="badge bg-${currentUserRole === 'police' ? 'danger' : 'primary'} fs-6">
+                  ${currentUserRole === 'police' ? 'Police Officer' : 'Citizen'}
+                </span>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label text-muted">Email Address</label>
+                    <p class="form-control-plaintext fw-semibold">${currentUser.email}</p>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label text-muted">Account Type</label>
+                    <p class="form-control-plaintext fw-semibold">
+                      ${currentUserRole === 'police' ? 'Police Officer' : 'Citizen User'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              ${currentUserRole === 'police' && currentUser.badgeNumber ? `
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label text-muted">Badge Number</label>
+                    <p class="form-control-plaintext fw-semibold">${currentUser.badgeNumber}</p>
+                  </div>
+                </div>
+              </div>
+              ` : ''}
+              
+              <div class="row">
+                <div class="col-12">
+                  <div class="mb-3">
+                    <label class="form-label text-muted">Account Status</label>
+                    <p class="form-control-plaintext">
+                      <span class="badge bg-success">Active</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <hr>
+              
+              <div class="d-flex justify-content-between">
+                <div>
+                  <button class="btn btn-outline-primary" onclick="editProfile()">
+                    <i class="bi bi-pencil me-2"></i>Edit Profile
+                  </button>
+                  <button class="btn btn-outline-secondary ms-2" onclick="changePassword()">
+                    <i class="bi bi-key me-2"></i>Change Password
+                  </button>
+                </div>
+                <button class="btn btn-outline-danger" onclick="logout()">
+                  <i class="bi bi-box-arrow-right me-2"></i>Logout
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card mt-4">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-shield-check me-2"></i>Security Information</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <p class="text-muted"><small>Last Login: Today</small></p>
+                </div>
+                <div class="col-md-6">
+                  <p class="text-muted"><small>Account created: Recently</small></p>
+                </div>
+              </div>
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Security Tip:</strong> Always keep your password secure and never share your login credentials with anyone.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
 
 function renderPoliceDashboard() {
   console.log('🚔 Police Dashboard Render Called');
@@ -3379,10 +3770,11 @@ function renderUpdateComplaint() {
   const complaintId = urlParams.get('id');
   
   if (!complaintId) {
-    return `<div class="container mt-5"><div class="alert alert-danger">Complaint ID not found</div></div>`;
+    return `<div class="container mt-5"><div class="alert alert-danger">Complaint ID not provided</div></div>`;
   }
 
-  // Get stored complaint data
+  // This is a placeholder - in a real app, you'd fetch the complaint data
+  return `<div class="container mt-5"><div class="alert alert-info">Update complaint ${complaintId} - Feature coming soon</div></div>`;
   const editData = localStorage.getItem('editComplaintData');
   const complaint = editData ? JSON.parse(editData) : null;
 
