@@ -710,12 +710,12 @@ app.get('/api/complaints', authenticateUser, async (req, res) => {
     if (!database) {
       // Fallback to file
       const data = loadFromFile();
-      const userComplaints = data.complaints.filter(c => c.userId === (req.user?.id || 'user_demo_1'));
+      const userComplaints = data.complaints.filter(c => c.userEmail === (req.user?.email || 'user_demo_1@example.com'));
       return res.json({ success: true, data: { complaints: userComplaints, total: userComplaints.length } });
     }
     
     const complaintsCollection = database.collection('complaints');
-    const complaints = await complaintsCollection.find({ userId: req.user?.id || 'user_demo_1' }).toArray();
+    const complaints = await complaintsCollection.find({ userEmail: req.user?.email || 'user_demo_1@example.com' }).toArray();
     res.json({ success: true, data: { complaints, total: complaints.length } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to get complaints' });
@@ -749,7 +749,7 @@ app.get('/api/complaints/user', authenticateUser, async (req, res) => {
     
     const complaintsCollection = database.collection('complaints');
     const userComplaints = await complaintsCollection.find({
-      userId: req.user?.id || 'user_demo_1'
+      userEmail: req.user?.email || 'user_demo_1@example.com'
     }).sort({ createdAt: -1 }).toArray();
     
     console.log(`✅ Found ${userComplaints.length} complaints for user from MongoDB`);
@@ -834,6 +834,7 @@ app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async
       incidentLocation,
       userLocation: JSON.parse(userLocation),
       userId: req.user?.id || 'user_demo_1',
+      userEmail: req.user?.email || 'user_demo_1@example.com',
       evidence: uploadedFiles,
       evidenceMetadata: evidenceMetadata,
       createdAt: new Date().toISOString()
@@ -861,6 +862,59 @@ app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async
   } catch (error) {
     console.error('Error filing complaint with geolocation evidence:', error);
     res.status(500).json({ success: false, message: 'Failed to file complaint' });
+  }
+});
+
+// Delete complaint endpoint
+app.delete('/api/complaints/:id', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const database = await connectToMongoDB();
+    
+    if (!database) {
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    
+    // First check if complaint exists and belongs to user
+    const complaint = await complaintsCollection.findOne({ 
+      _id: new ObjectId(id),
+      userEmail: req.user?.email || 'user_demo_1@example.com'
+    });
+    
+    if (!complaint) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Complaint not found or you do not have permission to delete it' 
+      });
+    }
+    
+    // Delete the complaint
+    const result = await complaintsCollection.deleteOne({ 
+      _id: new ObjectId(id),
+      userEmail: req.user?.email || 'user_demo_1@example.com'
+    });
+    
+    if (result.deletedCount > 0) {
+      console.log(`✅ Complaint deleted: ${id} by user: ${req.user?.email}`);
+      res.json({ 
+        success: true, 
+        message: 'Complaint deleted successfully' 
+      });
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        message: 'Failed to delete complaint' 
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error deleting complaint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete complaint' 
+    });
   }
 });
 
