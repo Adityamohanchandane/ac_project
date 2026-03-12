@@ -19,7 +19,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 3002,
+    port: 5177,
     strictPort: true,
     allowedHosts: [
       'ac-project-g7c0.onrender.com',
