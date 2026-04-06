@@ -3219,7 +3219,7 @@ function attachComplaintFormListeners() {
     complaintForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const formData = {
+      const formDataObj = {
         title: document.getElementById('complaintTitle').value,
         category: document.getElementById('category').value,
         incidentDate: document.getElementById('incidentDate').value,
@@ -3228,7 +3228,7 @@ function attachComplaintFormListeners() {
         userLocation: document.getElementById('userLocation').getAttribute('data-location')
       };
 
-      if (!formData.userLocation) {
+      if (!formDataObj.userLocation) {
         showNotification('error', 'Please capture your location first');
         return;
       }
@@ -3302,7 +3302,7 @@ function attachComplaintFormListeners() {
     emergencyComplaintForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const formData = {
+      const formDataObj = {
         title: document.getElementById('emergencyTitle').value || 'Emergency Report',
         category: document.getElementById('emergencyCategory').value,
         emergencyLocation: document.getElementById('emergencyLocation').value || 'Location captured by GPS',
@@ -3310,7 +3310,7 @@ function attachComplaintFormListeners() {
         userLocation: document.getElementById('emergencyUserLocation').getAttribute('data-location')
       };
 
-      if (!formData.userLocation) {
+      if (!formDataObj.userLocation) {
         showNotification('error', 'Please capture your location first');
         return;
       }
