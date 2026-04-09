@@ -1518,11 +1518,11 @@ function renderUserLogin() {
         <form id="loginForm">
           <div class="mb-3">
             <label class="form-label">Email</label>
-            <input type="email" class="form-control" id="loginEmail" value="adii123@gmail.com" required>
+            <input type="email" class="form-control" id="loginEmail" value="" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="loginPassword" value="adii123" required>
+            <input type="password" class="form-control" id="loginPassword" value="" required>
           </div>
           <div id="loginAlert"></div>
           <button type="submit" class="btn btn-primary w-100">Login</button>
@@ -1549,11 +1549,11 @@ function renderPoliceLogin() {
         <form id="policeLoginForm">
           <div class="mb-3">
             <label class="form-label">Police Email ID</label>
-            <input type="email" class="form-control" id="email" value="adii123@gmail.com" placeholder="officer@observx.gov.in" required>
+            <input type="email" class="form-control" id="email" value="" placeholder="" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="password" value="adii123" required>
+            <input type="password" class="form-control" id="password" value="" required>
           </div>
           <div id="policeLoginAlert"></div>
           <button type="submit" class="btn btn-secondary w-100">Login</button>
@@ -1842,20 +1842,40 @@ const loadDashboardData = async () => {
     
     // Update complaints table
     const complaintsTbody = document.getElementById('complaints-tbody');
-    complaintsTbody.innerHTML = complaints.map(complaint => `
-      <tr>
-        <td>${complaint.complaintId}</td>
-        <td>${complaint.title}</td>
-        <td>${complaint.category}</td>
-        <td><span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span></td>
-        <td>${new Date(complaint.createdAt).toLocaleDateString()}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint._id}')">
-            <i class="bi bi-eye"></i> View
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    
+    if (complaints.length === 0) {
+      // Show "No Complaints Found" message
+      complaintsTbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-4">
+            <div class="text-muted">
+              <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+              <h5>No Complaints Found</h5>
+              <p class="mb-0">You haven't filed any complaints yet. Click the button below to file your first complaint.</p>
+              <a href="#/complaint-type-selection" class="btn btn-primary mt-3">
+                <i class="bi bi-plus-circle me-2"></i>File a Complaint
+              </a>
+            </div>
+          </td>
+        </tr>
+      `;
+    } else {
+      // Show complaints table
+      complaintsTbody.innerHTML = complaints.map(complaint => `
+        <tr>
+          <td>${complaint.complaintId}</td>
+          <td>${complaint.title}</td>
+          <td>${complaint.category}</td>
+          <td><span class="badge bg-${getStatusColor(complaint.status)}">${complaint.status}</span></td>
+          <td>${new Date(complaint.createdAt).toLocaleDateString()}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint('${complaint._id}')">
+              <i class="bi bi-eye"></i> View
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
     
     // Hide loading and show table
     document.getElementById('complaints-loading').style.display = 'none';
@@ -2231,7 +2251,7 @@ function fillFeedback(complaintId) {
                 </div>
                 <div class="mb-3">
                   <label class="form-label">Feedback Comments</label>
-                  <textarea class="form-control" id="feedbackComments" rows="4" placeholder="Please share your experience with the complaint resolution process..." required></textarea>
+                  <textarea class="form-control" id="feedbackComments" rows="4" placeholder="Please share your experience with the complaint resolution process... (Optional)"></textarea>
                 </div>
                 <div class="mb-3">
                   <label class="form-label">Would you recommend this service?</label>
@@ -2279,8 +2299,8 @@ async function submitFeedback(complaintId) {
     const comments = document.getElementById('feedbackComments').value;
     const recommend = document.querySelector('input[name="recommend"]:checked')?.value;
     
-    if (!rating || !comments) {
-      showNotification('error', 'Please provide rating and comments');
+    if (!rating) {
+      showNotification('error', 'Please provide a rating');
       return;
     }
     
@@ -2719,12 +2739,6 @@ function renderComplaintsTable(complaints) {
 // Load real complaints data from API
 async function loadMyComplaintsData() {
   try {
-    // Check if demo mode is enabled
-    if (demoMode.enabled && currentUserRole === 'user') {
-      console.log('🎭 Demo mode: Returning demo complaints');
-      return demoMode.demoComplaints;
-    }
-    
     const token = localStorage.getItem('authToken');
     if (!token) {
       console.log('❌ No auth token found');
@@ -3414,31 +3428,6 @@ async function loadComplaintDetail(complaintId) {
   try {
     console.log('🔍 loadComplaintDetail called with ID:', complaintId);
     
-    // Check if demo mode is enabled
-    if (demoMode.enabled) {
-      console.log('🎭 Demo mode: Using demo complaints');
-      console.log('🎭 Current user role:', currentUserRole);
-      
-      const complaint = demoMode.demoComplaints.find(c => c._id === complaintId || c.complaintId === complaintId);
-      
-      if (complaint) {
-        console.log('✅ Demo complaint found:', complaint);
-        displayComplaintDetail(complaint);
-        return;
-      } else {
-        console.log('❌ Demo complaint not found');
-        console.log('🔍 Available demo complaints:', demoMode.demoComplaints);
-        document.getElementById('complaintDetailContent').innerHTML = `
-          <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            Complaint not found
-            <br><small>Looking for ID: ${complaintId}</small>
-          </div>
-        `;
-        return;
-      }
-    }
-    
     const token = localStorage.getItem('authToken');
     console.log('🔍 Token check:', {
       exists: !!token,
@@ -3489,6 +3478,15 @@ async function loadComplaintDetail(complaintId) {
       
       if (complaint) {
         console.log('✅ Complaint found:', complaint);
+        // Hide loading spinner
+        const loadingElement = document.querySelector('#complaintDetailContent .spinner-border');
+        if (loadingElement) {
+          loadingElement.style.display = 'none';
+        }
+        const loadingText = document.querySelector('#complaintDetailContent p');
+        if (loadingText) {
+          loadingText.style.display = 'none';
+        }
         displayComplaintDetail(complaint);
       } else {
         console.log('❌ Complaint not found');
@@ -3496,6 +3494,7 @@ async function loadComplaintDetail(complaintId) {
           <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
             Complaint not found
+            <br><small>Looking for ID: ${complaintId}</small>
           </div>
         `;
       }
@@ -3631,6 +3630,9 @@ function displayComplaintDetail(complaint) {
             <i class="bi bi-pencil me-2"></i>Edit Complaint
           </button>
         ` : ''}
+        <button class="btn btn-danger" onclick="deleteComplaint('${complaint._id}', '${complaint.title}')">
+          <i class="bi bi-trash me-2"></i>Delete Complaint
+        </button>
         <a href="#/my-complaints" class="btn btn-outline-secondary">
           <i class="bi bi-arrow-left me-2"></i>Back to List
         </a>
@@ -3730,6 +3732,48 @@ async function downloadEvidence(complaintId, filename) {
   } catch (error) {
     console.error('Error downloading evidence:', error);
     showNotification('error', 'Error downloading evidence file');
+  }
+}
+
+// Delete complaint function
+async function deleteComplaint(complaintId, complaintTitle) {
+  try {
+    // Show confirmation dialog
+    const confirmed = confirm(
+      `Are you sure you want to delete this complaint?\n\n` +
+      `Title: ${complaintTitle}\n` +
+      `ID: ${complaintId}\n\n` +
+      `This action cannot be undone.`
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    console.log('🗑️ Deleting complaint:', complaintId);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${BASE_URL}/api/complaints/${complaintId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showNotification('success', 'Complaint deleted successfully!');
+      // Redirect back to complaints list
+      window.location.hash = '#/my-complaints';
+    } else {
+      showNotification('error', result.message || 'Failed to delete complaint');
+    }
+    
+  } catch (error) {
+    console.error('Error deleting complaint:', error);
+    showNotification('error', 'Error deleting complaint. Please try again.');
   }
 }
 

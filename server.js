@@ -13,15 +13,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Proper MongoDB URI with encoded password
-const getDefaultMongoURI = () => {
-  const username = 'adityachandane71_db_user';
-  const password = 'adityamch2007'; // Original password
-  const encodedPassword = encodeURIComponent(password);
-  return `mongodb+srv://${username}:${encodedPassword}@observex.fcerr8w.mongodb.net/?appName=observeX`;
-};
+const MONGODB_URI = process.env.MONGODB_URI;
 
-const MONGODB_URI = process.env.MONGODB_URI || getDefaultMongoURI();
+if (!MONGODB_URI) {
+  console.error('❌ MONGODB_URI environment variable is required');
+  process.exit(1);
+}
 const DATA_FILE = join(process.cwd(), 'data.json');
 
 // Multer configuration for file uploads
@@ -100,8 +97,8 @@ const connectToMongoDB = async () => {
     
   } catch (error) {
     console.error("❌ MongoDB Connection Failed:", error.message);
-    console.error("� CRITICAL: MongoDB is required - no fallback to file storage");
-    throw new Error("MongoDB connection is required. Please check your connection.");
+    console.error("⚠️ Falling back to file storage");
+    return null; // Return null to indicate fallback should be used
   }
 };
 
@@ -124,23 +121,72 @@ const saveToFile = (data) => {
   }
 };
 
-const initializeDemoData = () => {
+const initializeDemoData = async () => {
   const data = loadFromFile();
   
- 
+  // Create demo user account in MongoDB if enabled
+  if (process.env.DEMO_MODE === 'true') {
+    try {
+      const database = await connectToMongoDB();
+      if (database) {
+        const usersCollection = database.collection('users');
+        const existingUser = await usersCollection.findOne({ email: 'demo@user.com' });
+        
+        if (!existingUser) {
+          const demoPassword = 'demo123';
+          const hashedPassword = bcrypt.hashSync(demoPassword, 12);
+          await usersCollection.insertOne({
+            _id: 'user_demo_1',
+            fullName: 'Demo User',
+            email: 'demo@user.com',
+            mobile: '9876543210',
+            address: 'Demo Address',
+            password: hashedPassword,
+            role: 'user',
+            isActive: true,
+            createdAt: new Date().toISOString()
+          });
+          console.log('?? Demo user account created in MongoDB');
+        }
+      }
+    } catch (error) {
+      console.log('MongoDB user creation failed, using file storage');
+    }
+  }
   
-  if (!data.police.find(p => p.email === 'adii123@gmail.com')) {
-    const hashedPassword = bcrypt.hashSync('adii123', 12);
+  // Create demo user account in file storage if enabled and not exists
+  if (process.env.DEMO_MODE === 'true' && !data.users.find(u => u.email === 'demo@user.com')) {
+    const demoPassword = 'demo123';
+    const hashedPassword = bcrypt.hashSync(demoPassword, 12);
+    data.users.push({
+      _id: 'user_demo_1',
+      fullName: 'Demo User',
+      email: 'demo@user.com',
+      mobile: '9876543210',
+      address: 'Demo Address',
+      password: hashedPassword,
+      role: 'user',
+      isActive: true,
+      createdAt: new Date().toISOString()
+    });
+    console.log('?? Demo user account created in file storage');
+  }
+
+  // Create demo police account if enabled and not exists
+  if (process.env.DEMO_MODE === 'true' && !data.police.find(p => p.email === process.env.DEMO_POLICE_EMAIL)) {
+    const demoPassword = process.env.DEMO_POLICE_PASSWORD || 'demo123';
+    const hashedPassword = bcrypt.hashSync(demoPassword, 12);
     data.police.push({
       _id: 'police_demo_1',
-      fullName: 'Police Officer',
-      email: 'adii123@gmail.com',
-      badgeNumber: 'POL001',
+      fullName: process.env.DEMO_POLICE_NAME || 'Demo Police Officer',
+      email: process.env.DEMO_POLICE_EMAIL || 'demo@police.com',
+      badgeNumber: process.env.DEMO_POLICE_BADGE || 'DEMO001',
       password: hashedPassword,
       role: 'police',
       isActive: true,
       createdAt: new Date().toISOString()
     });
+    console.log('?? Demo police account created');
   }
   
   if (data.complaints.length === 0) {
@@ -236,27 +282,46 @@ app.get('/api/auth/profile', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   console.log('🔐 Login Request Debug:');
-  console.log('- Request body:', req.body);
-  console.log('- Request timestamp:', new Date().toISOString());
   
   try {
     const { email, password } = req.body;
-    console.log('- Extracted email:', email);
-    console.log('- Password provided:', !!password);
-    console.log('- Password length:', password ? password.length : 0);
     
     if (!email || !password) {
       console.log('- Missing email or password');
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     
-    // Connect to MongoDB (required)
+    // Connect to MongoDB with fallback to file storage
     console.log('- Connecting to MongoDB...');
     const database = await connectToMongoDB();
     
     if (!database) {
-      console.log('- ❌ MongoDB connection failed');
-      return res.status(500).json({ success: false, message: 'Database connection failed' });
+      console.log('- ⚠️ MongoDB connection failed, using file storage');
+      // Fallback to file storage
+      const data = loadFromFile();
+      const user = data.users.find(u => u.email === email);
+      
+      if (user) {
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (passwordMatch) {
+          const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+          return res.json({
+            success: true,
+            message: 'Login successful (file storage)',
+            data: { 
+              user: { 
+                id: user._id, 
+                fullName: user.fullName, 
+                email: user.email, 
+                role: user.role 
+              }, 
+              token 
+            }
+          });
+        }
+      }
+      
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
     
     console.log('✅ MongoDB connected successfully');
@@ -265,23 +330,12 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await usersCollection.findOne({ email });
     
     if (user) {
-      console.log('- User found in MongoDB:', !!user);
-      console.log('- User data:', { 
-        id: user._id, 
-        fullName: user.fullName, 
-        email: user.email, 
-        role: user.role,
-        hasPassword: !!user.password,
-        passwordLength: user.password ? user.password.length : 0
-      });
+      console.log('- User found in MongoDB');
       
       // Use bcrypt for MongoDB passwords
       console.log('- Starting bcrypt password comparison...');
-      const startTime = Date.now();
       const passwordMatch = await bcrypt.compare(password, user.password);
-      const endTime = Date.now();
-      console.log('- Password comparison completed in:', (endTime - startTime), 'ms');
-      console.log('- Password match result:', passwordMatch);
+      console.log('- Password comparison completed');
       
       if (passwordMatch) {
         const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
@@ -320,32 +374,39 @@ app.post('/api/police/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     console.log('🔐 Police Login Request Debug:');
-    console.log('- Email:', email);
-    console.log('- Password provided:', !!password);
     
-    // Connect to MongoDB
+    // Connect to MongoDB with fallback to file storage
     const database = await connectToMongoDB();
     if (!database) {
-      return res.status(500).json({ success: false, message: 'Database connection failed' });
+      console.log('- ⚠️ MongoDB connection failed, using file storage for police login');
+      // Fallback to file storage
+      const data = loadFromFile();
+      const police = data.users.find(u => u.email === email && u.role === 'police');
+      
+      if (police) {
+        const passwordMatch = await bcrypt.compare(password, police.password);
+        if (passwordMatch) {
+          const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+          return res.json({
+            success: true,
+            message: 'Police login successful (file storage)',
+            data: { police: { id: police._id, fullName: police.fullName, email: police.email, role: police.role }, token }
+          });
+        }
+      }
+      
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
     
     // Search in users collection (allow any user for police login)
     const usersCollection = database.collection('users');
     console.log('- Searching for police user:', email);
     const police = await usersCollection.findOne({ email });
-    console.log('- Police found:', !!police);
     
     if (police) {
-      console.log('- Police data:', { 
-        id: police._id, 
-        fullName: police.fullName, 
-        email: police.email, 
-        role: police.role,
-        hasPassword: !!police.password
-      });
+      console.log('- Police officer found in MongoDB');
       
       const passwordMatch = await bcrypt.compare(password, police.password);
-      console.log('- Password match:', passwordMatch);
       
       if (passwordMatch) {
         const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
@@ -624,10 +685,8 @@ const sanitizeUserInput = (data) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     console.log('📝 Registration Request Debug:');
-    console.log('- Request body:', req.body);
     
     const { fullName, email, mobile, address, password } = req.body;
-    console.log('- Extracted fields:', { fullName, email, mobile, address, password: !!password });
     
     // Validate input
     const validation = validateUserRegistration({ fullName, email, mobile, address, password });
@@ -642,10 +701,56 @@ app.post('/api/auth/register', async (req, res) => {
     
     // Sanitize input
     const sanitizedData = sanitizeUserInput({ fullName, email, mobile, address, password });
-    console.log('- Sanitized data:', { ...sanitizedData, password: !!sanitizedData.password });
     
-    // Connect to MongoDB (required)
+    // Connect to MongoDB with fallback to file storage
     const database = await connectToMongoDB();
+    
+    if (!database) {
+      // Fallback to file storage
+      console.log('⚠️ Using file storage for registration');
+      const data = loadFromFile();
+      
+      // Check if user already exists in file
+      const existingUser = data.users.find(u => u.email === sanitizedData.email);
+      if (existingUser) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'User already exists with this email' 
+        });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(sanitizedData.password || password, 12);
+      
+      // Create new user
+      const newUser = {
+        _id: 'user_' + Date.now(),
+        fullName: sanitizedData.fullName,
+        email: sanitizedData.email,
+        mobile: sanitizedData.mobile,
+        address: sanitizedData.address || '',
+        password: hashedPassword,
+        role: 'user',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+      
+      data.users.push(newUser);
+      saveToFile(data);
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Registration successful (file storage)',
+        data: {
+          user: {
+            id: newUser._id,
+            fullName: newUser.fullName,
+            email: newUser.email,
+            role: newUser.role
+          }
+        }
+      });
+    }
     
     const usersCollection = database.collection('users');
     
@@ -660,10 +765,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
     
     // Hash password
-    console.log('- Password to hash:', sanitizedData.password);
-    console.log('- Password type:', typeof sanitizedData.password);
-    console.log('- Original password:', password);
-    console.log('- Original password type:', typeof password);
+    console.log('- Password hashing initiated');
     const hashedPassword = await bcrypt.hash(sanitizedData.password || password, 12);
     
     // Create new user
@@ -710,12 +812,12 @@ app.get('/api/complaints', authenticateUser, async (req, res) => {
     if (!database) {
       // Fallback to file
       const data = loadFromFile();
-      const userComplaints = data.complaints.filter(c => c.userId === (req.user?.id || 'user_demo_1'));
+      const userComplaints = data.complaints.filter(c => c.userEmail === (req.user?.email || 'user_demo_1@example.com'));
       return res.json({ success: true, data: { complaints: userComplaints, total: userComplaints.length } });
     }
     
     const complaintsCollection = database.collection('complaints');
-    const complaints = await complaintsCollection.find({ userId: req.user?.id || 'user_demo_1' }).toArray();
+    const complaints = await complaintsCollection.find({ userEmail: req.user?.email || 'user_demo_1@example.com' }).toArray();
     res.json({ success: true, data: { complaints, total: complaints.length } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to get complaints' });
@@ -749,7 +851,7 @@ app.get('/api/complaints/user', authenticateUser, async (req, res) => {
     
     const complaintsCollection = database.collection('complaints');
     const userComplaints = await complaintsCollection.find({
-      userId: req.user?.id || 'user_demo_1'
+      userEmail: req.user?.email || 'user_demo_1@example.com'
     }).sort({ createdAt: -1 }).toArray();
     
     console.log(`✅ Found ${userComplaints.length} complaints for user from MongoDB`);
@@ -834,6 +936,7 @@ app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async
       incidentLocation,
       userLocation: JSON.parse(userLocation),
       userId: req.user?.id || 'user_demo_1',
+      userEmail: req.user?.email || 'user_demo_1@example.com',
       evidence: uploadedFiles,
       evidenceMetadata: evidenceMetadata,
       createdAt: new Date().toISOString()
@@ -861,6 +964,59 @@ app.post('/api/complaints', authenticateUser, upload.array('evidence', 5), async
   } catch (error) {
     console.error('Error filing complaint with geolocation evidence:', error);
     res.status(500).json({ success: false, message: 'Failed to file complaint' });
+  }
+});
+
+// Delete complaint endpoint
+app.delete('/api/complaints/:id', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const database = await connectToMongoDB();
+    
+    if (!database) {
+      return res.status(500).json({ success: false, message: 'Database connection failed' });
+    }
+    
+    const complaintsCollection = database.collection('complaints');
+    
+    // First check if complaint exists and belongs to user
+    const complaint = await complaintsCollection.findOne({ 
+      _id: new ObjectId(id),
+      userEmail: req.user?.email || 'user_demo_1@example.com'
+    });
+    
+    if (!complaint) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Complaint not found or you do not have permission to delete it' 
+      });
+    }
+    
+    // Delete the complaint
+    const result = await complaintsCollection.deleteOne({ 
+      _id: new ObjectId(id),
+      userEmail: req.user?.email || 'user_demo_1@example.com'
+    });
+    
+    if (result.deletedCount > 0) {
+      console.log(`✅ Complaint deleted: ${id} by user: ${req.user?.email}`);
+      res.json({ 
+        success: true, 
+        message: 'Complaint deleted successfully' 
+      });
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        message: 'Failed to delete complaint' 
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error deleting complaint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete complaint' 
+    });
   }
 });
 
