@@ -1164,6 +1164,7 @@ const pages = {
 window.addEventListener('hashchange', () => {
   const hash = location.hash.slice(2) || 'home'
   const route = hash.split('?')[0]
+  console.log('Hash change detected:', { hash: location.hash, route })
   loadPage(route)
 })
 
@@ -1176,6 +1177,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const route = hash.split('?')[0]
     await loadPage(route)
     initApp()
+    
+    // Add click event listener for all navigation links
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('a[href^="#"]')
+      if (link) {
+        e.preventDefault()
+        const href = link.getAttribute('href')
+        console.log('Navigation link clicked:', href)
+        window.location.hash = href
+      }
+    })
   } catch (error) {
     console.error('Error initializing app:', error)
     showNotification('error', 'Failed to initialize the application. Please try again.')
@@ -1292,6 +1304,7 @@ async function loadPage(route) {
   if (!content) return
 
   try {
+    console.log('Loading page:', { route, availableRoutes: Object.keys(pages) })
     setLoading(true)
     
     content.style.opacity = '0'
@@ -1300,6 +1313,7 @@ async function loadPage(route) {
     await new Promise(resolve => setTimeout(resolve, 200))
     
     if (pages[route]) {
+      console.log('Page found, rendering:', route)
       content.innerHTML = await pages[route]()
       content.style.opacity = '0'
       content.style.animation = 'fadeIn 0.5s forwards'
@@ -1525,7 +1539,9 @@ function renderUserLogin() {
             <input type="password" class="form-control" id="loginPassword" value="" required>
           </div>
           <div id="loginAlert"></div>
-          <button type="submit" class="btn btn-primary w-100">Login</button>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Login
+          </button>
         </form>
         <p class="text-center mt-3">Don't have an account? <a href="#/user-register">Register here</a></p>
         <p class="text-center"><small>Police Officer? <a href="#/police-login">Login here</a></small></p>
@@ -1542,23 +1558,34 @@ function renderPoliceLogin() {
   return `
     <div class="login-container">
       <div class="login-card">
-        <h2><i class="bi bi-shield-check"></i> Police Login</h2>
+        <h2><i class="bi bi-shield-fill"></i> Police Admin Login</h2>
+        <div class="alert alert-warning mb-3">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>Admin Access Only:</strong> This portal is restricted to authorized police administrators.
+        </div>
         <div class="alert alert-info mb-3">
-          <small>This portal is exclusively for authorized police officers only.</small>
+          <small><i class="bi bi-info-circle me-1"></i> Enter your admin credentials to access the police dashboard.</small>
         </div>
         <form id="policeLoginForm">
           <div class="mb-3">
-            <label class="form-label">Police Email ID</label>
-            <input type="email" class="form-control" id="email" value="" placeholder="" required>
+            <label class="form-label">Admin Email</label>
+            <input type="email" class="form-control" id="email" value="" placeholder="Enter admin email" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="password" value="" required>
+            <label class="form-label">Admin Password</label>
+            <input type="password" class="form-control" id="password" value="" placeholder="Enter admin password" required>
           </div>
           <div id="policeLoginAlert"></div>
-          <button type="submit" class="btn btn-secondary w-100">Login</button>
+          <button type="submit" class="btn btn-danger w-100">
+            <i class="bi bi-shield-lock me-2"></i>Access Admin Panel
+          </button>
         </form>
         <p class="text-center mt-3"><a href="#/">Back to Home</a></p>
+        <div class="text-center mt-2">
+          <small class="text-muted">
+            <i class="bi bi-lock me-1"></i>Unauthorized access attempts are logged and monitored
+          </small>
+        </div>
       </div>
     </div>
   `
@@ -3416,9 +3443,42 @@ function attachLoginListeners() {
   if (policeLoginForm) {
     policeLoginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value;
+      const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
-      await login(email, password, 'police');
+      const alertDiv = document.getElementById('policeLoginAlert');
+      
+      // Frontend validation
+      if (!email || !password) {
+        alertDiv.innerHTML = '<div class="alert alert-danger">Email and password are required</div>';
+        return;
+      }
+      
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        alertDiv.innerHTML = '<div class="alert alert-danger">Please enter a valid email address</div>';
+        return;
+      }
+      
+      // Clear any previous alerts
+      alertDiv.innerHTML = '';
+      
+      // Show loading state
+      const submitButton = policeLoginForm.querySelector('button[type="submit"]');
+      const originalText = submitButton.textContent;
+      submitButton.textContent = 'Logging in...';
+      submitButton.disabled = true;
+      
+      try {
+        await login(email, password, 'police');
+      } catch (error) {
+        console.error('Police login error:', error);
+        alertDiv.innerHTML = '<div class="alert alert-danger">Login failed. Please try again.</div>';
+      } finally {
+        // Reset button state
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+      }
     });
   }
 }

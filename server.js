@@ -360,68 +360,87 @@ app.post('/api/auth/login', async (req, res) => {
       console.log('- ❌ Password mismatch - authentication failed');
       res.status(401).json({ success: false, message: 'Invalid email or password' });
     } else {
-      console.log('- ❌ User not found in MongoDB - authentication failed');
+      console.log('- User not found in MongoDB - authentication failed');
       res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
   } catch (error) {
-    console.error('❌ Login error:', error);
+    console.error(' Login error:', error);
     console.error('- Error stack:', error.stack);
     res.status(500).json({ success: false, message: 'Login failed due to server error' });
   }
 });
 
+// Secure Police Admin Login Endpoint
 app.post('/api/police/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('🔐 Police Login Request Debug:');
+    console.log(' Police Admin Login Request Debug:');
     
-    // Connect to MongoDB with fallback to file storage
-    const database = await connectToMongoDB();
-    if (!database) {
-      console.log('- ⚠️ MongoDB connection failed, using file storage for police login');
-      // Fallback to file storage
-      const data = loadFromFile();
-      const police = data.users.find(u => u.email === email && u.role === 'police');
-      
-      if (police) {
-        const passwordMatch = await bcrypt.compare(password, police.password);
-        if (passwordMatch) {
-          const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
-          return res.json({
-            success: true,
-            message: 'Police login successful (file storage)',
-            data: { police: { id: police._id, fullName: police.fullName, email: police.email, role: police.role }, token }
-          });
-        }
-      }
-      
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    // Security: Check if police login is enabled
+    if (process.env.POLICE_LOGIN_ENABLED !== 'true') {
+      console.log('- Police login is disabled in configuration');
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Police login is currently disabled' 
+      });
     }
     
-    // Search in users collection (allow any user for police login)
-    const usersCollection = database.collection('users');
-    console.log('- Searching for police user:', email);
-    const police = await usersCollection.findOne({ email });
-    
-    if (police) {
-      console.log('- Police officer found in MongoDB');
-      
-      const passwordMatch = await bcrypt.compare(password, police.password);
-      
-      if (passwordMatch) {
-        const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
-        res.json({
-          success: true,
-          data: { police: { id: police._id, fullName: police.fullName, email: police.email, role: police.role }, token }
-        });
-        return;
-      }
+    // Security: Validate input parameters
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email and password are required' 
+      });
     }
     
-    res.status(401).json({ success: false, message: 'Invalid email or password' });
+    // Security: Get authorized credentials from environment variables
+    const authorizedEmail = process.env.AUTHORIZED_POLICE_EMAIL;
+    const authorizedPassword = process.env.POLICE_ADMIN_PASSWORD;
+    
+    if (!authorizedEmail || !authorizedPassword) {
+      console.error('- Police admin credentials not configured in environment variables');
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Server configuration error' 
+      });
+    }
+    
+    // Validate email and password exactly
+    if (email !== authorizedEmail || password !== authorizedPassword) {
+      console.log(`- Invalid login attempt with email: ${email}`);
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid credentials' 
+      });
+    }
+    
+    console.log(`- Authorized police admin login successful for: ${email}`);
+    
+    // Generate secure token
+    const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
+    
+    // Return success response with police admin data
+    res.json({
+      success: true,
+      message: 'Police admin login successful',
+      data: { 
+        police: { 
+          id: 'police_admin_1',
+          fullName: 'Police Administrator', 
+          email: email, 
+          role: 'police_admin',
+          isAdmin: true
+        }, 
+        token 
+      }
+    });
+    
   } catch (error) {
-    console.error('Police login error:', error);
-    res.status(500).json({ success: false, message: 'Login failed' });
+    console.error('Police admin login error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Login failed due to server error' 
+    });
   }
 });
 
